@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trafficwatch"
+version = "0.1.0"
+description = "Offline fixed-camera traffic incident detection: YOLOv8 detection, DeepSORT tracking, rule-based behaviour analysis."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "PyYAML>=6.0",
+    "opencv-python>=4.8,<5",
+    "ultralytics>=8.3",
+    "deep-sort-realtime>=1.3.2",
+    "scipy>=1.11",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "target: white-box tests that define Phase 2 rule behaviour; expected to fail with NotImplementedError until the rules are implemented",
+]

@@ -1,0 +1,27 @@
+run:
+  seed: 0
+  frame_stride: 1
+detector:
+  weights: weights/CHANGEME_RUN_ID/best.pt   # or yolov8n.pt in stand-in mode
+  weights_kind: trained                      # trained | coco_standin
+  imgsz: 640
+  conf: 0.35                                 # calibrated in Phase 4
+  iou_nms: 0.6
+  classes: [car, van, bus, other, two_wheeler]
+preprocess:
+  low_light_enhance: false
+tracker:
+  max_age: 30
+  n_init: 3
+  max_iou_distance: 0.7
+  embedder: mobilenet
+behaviour:
+  speed_unit: body_heights_per_s
+  v_stop: 0.25
+  v_move: 1.0
+  smoothing_window_s: 0.5
+  abrupt_stop: { window_before_s: 1.0, window_after_s: 0.5, drop_ratio: 0.8, max_decel_s: 1.0 }
+  lane_obstruction: { min_stationary_s: 15.0, min_flow_fraction: 0.3, rearm_s: 5.0 }
+  collision: { v_close: 1.5, iou_min: 0.10, min_frames: 3, post_window_s: 1.5, heading_change_deg: 45 }
+  suppression: { queue_gap_bh: 1.5, global_slowdown_fraction: 0.5 }
+  zones: { driving_lanes: [], exclusion: [] }   # per-camera polygons in pixels
