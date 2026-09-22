@@ -69,8 +69,8 @@ Leakage check (script must fail the build if violated): no sequence ID in more t
 
 ```
 data/processed/yolo_ds_v1/
-  images/{train,val,test,dhaka_val}/...
-  labels/{train,val,test,dhaka_val}/...
+  images/{train,val,test,dhaka_train,dhaka_val}/...
+  labels/{train,val,test,dhaka_train,dhaka_val}/...
   data.yaml           # path-relative; rewritten on Colab to /content/data/yolo_ds_v1
   class_map.json
   stats.json          # counts before and after, drops with reasons, per-split class distribution
@@ -94,7 +94,7 @@ names:
   4: two_wheeler
 ```
 
-For T3 (UA-DETRAC plus DhakaAI), `train` becomes a list of both training image folders; `val` stays the UA-DETRAC val so runs remain comparable, and `dhaka_val` is evaluated separately.
+For T3 (UA-DETRAC plus DhakaAI), `train` becomes a list `[images/train, images/dhaka_train]` (the converter writes DhakaAI's training split into `images/dhaka_train` and `labels/dhaka_train`, same YOLO label format); `val` stays the UA-DETRAC val so runs remain comparable, and `dhaka_val` is evaluated separately.
 
 ## 7. Incident evaluation assets (built in Phase 5 prep, see doc 05)
 

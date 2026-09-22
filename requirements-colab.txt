@@ -1,0 +1,16 @@
+# Pinned extras for the first Colab run (notebooks/colab_train.ipynb). Frozen from the same
+# clean Python 3.10.20 install (2026-09-22) as requirements.txt, minus torch and torchvision:
+# Colab's preinstalled torch already matches its GPU and CUDA driver, and reinstalling our
+# CPU-only pin here would replace it with a build that cannot see the GPU. Also excludes
+# deep-sort-realtime, motmetrics, imagehash: not needed for training or validation.
+#
+# After a run completes, the notebook's export cell writes the real `pip freeze` of that run
+# into the Drive export folder as `requirements.lock`; bring that file back to the repo root
+# once a reported run is selected (the project rules section 7). This file is a starting pin, not that
+# record.
+
+ultralytics==8.4.158
+PyYAML==6.0.3
+pandas==2.3.3
+matplotlib==3.10.9
+seaborn==0.13.2

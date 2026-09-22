@@ -69,6 +69,10 @@ pytest -m standin -q                               # real-model smoke tests
 
 Each run writes `reports/<run_id>/` with `incidents.csv`, `tracks.csv`, `annotated.mp4`, `latency.json` and `run_manifest.json`. `--final` refuses stand-in weights.
 
+## Training on Colab
+
+Local training is out of scope (decision D-21). Run `notebooks/colab_train.ipynb` on Colab with a GPU: it clones this repo, installs `requirements-colab.txt`, stages the dataset from Drive, runs a smoke test, then the T1 to T3 run matrix (yolov8n and yolov8s only, decision D-11), compares val metrics, and exports each run to Drive. Full runbook: `docs/04_COLAB_TRAINING.md`.
+
 ## Adding the trained model later
 
 Drop the exported run into `weights/<RUN_ID>/` (needs `best.pt` and `model_card.json`), set `detector.weights` in `configs/pipeline.yaml`, set `weights_kind: trained`, and run the integration checklist in `docs/04_COLAB_TRAINING.md` section 9.
