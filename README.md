@@ -31,6 +31,7 @@ Data: UA-DETRAC and DhakaAI (public). Scope is strictly offline video files on a
 | `docs/05_EVALUATION_AND_TESTING.md` | Metric definitions, three-tier incident ground truth, calibration, test pyramid |
 | `docs/06_DOCUMENTATION_PLAN.md` | report sections 4 to 6 map, institutional formatting, diagrams, evidence capture |
 | `docs/07_DECISIONS_RISKS.md` | Decision log, risk register, specification defects |
+| `docs/08_SETUP_AND_PORTABILITY.md` | Setting up a fresh checkout on another machine, Linux or Windows, what git does and does not carry |
 | `docs/EXPERT_KICKOFF_PROMPT.md` | The prompt to start work in the development workspace, plus per-phase prompts |
 | `docs/logs/` | Training, evaluation, implementation, and test-access logs |
 | `docs/reference/` | The specification (docx and text copy) and institutional guides |
@@ -46,6 +47,8 @@ Data: UA-DETRAC and DhakaAI (public). Scope is strictly offline video files on a
 7. **Phase 6 Documentation** (continuous) and **Phase 7 Demo.**
 
 ## Quickstart
+
+Linux/macOS shown; setting up on Windows or a second machine: `docs/08_SETUP_AND_PORTABILITY.md`.
 
 ```bash
 python3.10 -m venv .venv && source .venv/bin/activate

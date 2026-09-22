@@ -1,4 +1,27 @@
 {
   "schema_version": 1,
-  "sources": []
+  "sources": [
+    {
+      "dataset": "dhakaai",
+      "artifact": "test1.rar",
+      "sha256": "58f8a44042f3f7c979edf20961f86e608c62dc4af093b5757d22b596efb789c3",
+      "size_bytes": 51771445,
+      "retrieval": "manual",
+      "source_url": "https://doi.org/10.7910/DVN/POREXF",
+      "doi": "10.7910/DVN/POREXF",
+      "licence": "CC0 1.0 (http://creativecommons.org/publicdomain/zero/1.0)",
+      "retrieved": "2026-09-22"
+    },
+    {
+      "dataset": "dhakaai",
+      "artifact": "train.rar",
+      "sha256": "308dd57d3630cb216b71ff9a689a07c5bae41007286444eb32050206a0f87ba2",
+      "size_bytes": 1443360509,
+      "retrieval": "manual",
+      "source_url": "https://doi.org/10.7910/DVN/POREXF",
+      "doi": "10.7910/DVN/POREXF",
+      "licence": "CC0 1.0 (http://creativecommons.org/publicdomain/zero/1.0)",
+      "retrieved": "2026-09-22"
+    }
+  ]
 }
