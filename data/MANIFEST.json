@@ -22,6 +22,39 @@
       "doi": "10.7910/DVN/POREXF",
       "licence": "CC0 1.0 (http://creativecommons.org/publicdomain/zero/1.0)",
       "retrieved": "2026-09-22"
+    },
+    {
+      "dataset": "ua-detrac",
+      "artifact": "DETRAC-Train-Annotations-XML.zip",
+      "sha256": "d6ce5dcf409680096fea289f4731e56d014cc7667a013f35a5eb6a8261cf8f0f",
+      "size_bytes": 12797880,
+      "retrieval": "manual",
+      "source_url": "https://sites.google.com/view/daweidu/projects/ua-detrac",
+      "doi": "VERIFY",
+      "licence": "VERIFY",
+      "retrieved": "2026-09-22"
+    },
+    {
+      "dataset": "ua-detrac",
+      "artifact": "DETRAC-Test-Annotations-XML.zip",
+      "sha256": "c274a7a96b33445e13693f2d0082d58acac34c94275ee89b8378c4348a6b3209",
+      "size_bytes": 12239887,
+      "retrieval": "manual",
+      "source_url": "https://sites.google.com/view/daweidu/projects/ua-detrac",
+      "doi": "VERIFY",
+      "licence": "VERIFY",
+      "retrieved": "2026-09-22"
+    },
+    {
+      "dataset": "ua-detrac",
+      "artifact": "DETRAC-Images.zip",
+      "sha256": "b8159ae798136ef7cdbb7dcbb76840b7aaff2545f130a7e3d1d73bc030feeb99",
+      "size_bytes": 9849591986,
+      "retrieval": "manual",
+      "source_url": "https://sites.google.com/view/daweidu/projects/ua-detrac",
+      "doi": "VERIFY",
+      "licence": "VERIFY",
+      "retrieved": "2026-09-22"
     }
   ]
 }

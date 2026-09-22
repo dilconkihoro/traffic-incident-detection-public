@@ -14,6 +14,29 @@ UA-DETRAC and DhakaAI label **vehicles**, not **incidents**. Neither contains gr
 
 Optional Tier D (crash clips from public collision datasets) is a scope change; do not do it without D-14 approval. State in report section 5 and 6 that real-collision recall is not established by this study.
 
+### 1.1 Tier C in practice: `scripts/make_demo_clip.py` (added 2026-09-22)
+
+Generates a short synthetic clip for a named scenario and runs it through the real `Pipeline`
+class, but with `ScriptedDetector` (`src/trafficwatch/demo/scenarios.py`) standing in for YOLOv8:
+it returns the exact ground-truth boxes for each frame instead of running detection. This proves
+the tracker, the rule engine, and the output files (`incidents.csv`, `tracks.csv`,
+`annotated.mp4`) are correct, and gives something to look at before real footage or a trained
+model exist. It proves nothing about detection accuracy, and its numbers never enter a result
+table, the same rule as `coco_standin` weights.
+
+```bash
+python scripts/make_demo_clip.py all        # or one of: abrupt_stop, free_flow, lane_obstruction, collision
+```
+
+| Scenario | Uses the real default thresholds | Expected result |
+|---|---|---|
+| `abrupt_stop` | Yes | One `ABRUPT_STOP` |
+| `free_flow` | Yes | None (the clean-negative case) |
+| `lane_obstruction` | Yes, `min_stationary_s: 15.0` in full, not shortened | Both `ABRUPT_STOP` and `LANE_OBSTRUCTION` (a stall is realistically a sudden stop that then persists) |
+| `collision` | Yes | One `COLLISION_LIKE` |
+
+Every scenario is covered end to end (not just at the rule level) in `tests/test_demo_scenarios.py`.
+
 ## 2. Metric definitions
 
 ### 2.1 Detector (component level)
