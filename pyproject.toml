@@ -24,6 +24,7 @@ where = ["src"]
 target-version = "py310"
 line-length = 100
 src = ["src", "tests", "scripts"]
+extend-exclude = ["docs"]   # docs hold Markdown with code blocks that are copied verbatim into notebooks
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -32,5 +33,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
+    "standin: loads the real COCO stand-in weights; needs scripts/fetch_standin_weights.py first",
     "target: white-box tests that define Phase 2 rule behaviour; expected to fail with NotImplementedError until the rules are implemented",
 ]

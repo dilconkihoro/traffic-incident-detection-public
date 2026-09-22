@@ -34,6 +34,18 @@ class Prepared:
     image640: np.ndarray
     scale: float
     pad: tuple[float, float]
+    original_wh: tuple[int, int]
+
+    def to_original(self, xyxy: XYXY) -> XYXY:
+        """Map a box from letterboxed coordinates back to the original frame, clipped to it."""
+        (left, top), (w, h) = self.pad, self.original_wh
+        x1, y1, x2, y2 = xyxy
+        return (
+            min(max((x1 - left) / self.scale, 0.0), float(w)),
+            min(max((y1 - top) / self.scale, 0.0), float(h)),
+            min(max((x2 - left) / self.scale, 0.0), float(w)),
+            min(max((y2 - top) / self.scale, 0.0), float(h)),
+        )
 
 
 @dataclass(frozen=True)

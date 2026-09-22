@@ -8,8 +8,11 @@ detector:
   conf: 0.35                                 # calibrated in Phase 4
   iou_nms: 0.6
   classes: [car, van, bus, other, two_wheeler]
+  standin_class_map: { 2: car, 3: two_wheeler, 5: bus, 7: other }   # COCO ids, coco_standin only
 preprocess:
   low_light_enhance: false
+  clahe_clip_limit: 2.0        # used only when low_light_enhance is true
+  clahe_tile_grid: 8
 tracker:
   max_age: 30
   n_init: 3
@@ -25,3 +28,7 @@ behaviour:
   collision: { v_close: 1.5, iou_min: 0.10, min_frames: 3, post_window_s: 1.5, heading_change_deg: 45 }
   suppression: { queue_gap_bh: 1.5, global_slowdown_fraction: 0.5 }
   zones: { driving_lanes: [], exclusion: [] }   # per-camera polygons in pixels
+output:
+  dir: reports                # each run writes reports/<run_id>/
+  annotated_video: true
+  tracks_csv: true

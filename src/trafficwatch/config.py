@@ -37,11 +37,14 @@ class DetectorConfig:
     conf: float
     iou_nms: float
     classes: tuple[str, ...]
+    standin_class_map: Mapping[int, str]
 
 
 @dataclass(frozen=True)
 class PreprocessConfig:
     low_light_enhance: bool
+    clahe_clip_limit: float
+    clahe_tile_grid: int
 
 
 @dataclass(frozen=True)
@@ -102,12 +105,20 @@ class BehaviourConfig:
 
 
 @dataclass(frozen=True)
+class OutputConfig:
+    dir: str
+    annotated_video: bool
+    tracks_csv: bool
+
+
+@dataclass(frozen=True)
 class PipelineConfig:
     run: RunConfig
     detector: DetectorConfig
     preprocess: PreprocessConfig
     tracker: TrackerConfig
     behaviour: BehaviourConfig
+    output: OutputConfig
 
 
 _MISSING = object()
@@ -278,6 +289,24 @@ class _Node:
             result[str(dataset)] = {str(s): t for s, t in mapping.items()}
         return result
 
+    def class_id_map(self, key: str, allowed: tuple[str, ...]) -> dict[int, str]:
+        """Source class id to unified class name; every target must be a configured class."""
+        value = self._fetch(key)
+        if value is _MISSING:
+            return {}
+        if not isinstance(value, Mapping) or not value:
+            self._fail(key, "expected a non-empty mapping of class id to class name")
+            return {}
+        result: dict[int, str] = {}
+        for source, target in value.items():
+            if isinstance(source, bool) or not isinstance(source, int) or source < 0:
+                self._fail(f"{key}.{source}", "class id must be a non-negative integer")
+            elif target not in allowed:
+                self._fail(f"{key}.{source}", f"must be one of {list(allowed)}, got {target!r}")
+            else:
+                result[source] = target
+        return result
+
     def polygons(self, key: str) -> tuple[Polygon, ...]:
         value = self._fetch(key)
         if value is _MISSING:
@@ -321,13 +350,17 @@ def _detector(node: _Node, weights_override: str | None, final: bool) -> Detecto
     imgsz = node.integer("imgsz", ge=32)
     if imgsz % 32 != 0:
         node._fail("imgsz", f"must be a multiple of 32, got {imgsz}")
+    conf = node.number("conf", gt=0.0, lt=1.0)
+    iou_nms = node.number("iou_nms", gt=0.0, le=1.0)
+    classes = node.names("classes")
     cfg = DetectorConfig(
         weights=weights_override or weights,
         weights_kind=kind,
         imgsz=imgsz,
-        conf=node.number("conf", gt=0.0, lt=1.0),
-        iou_nms=node.number("iou_nms", gt=0.0, le=1.0),
-        classes=node.names("classes"),
+        conf=conf,
+        iou_nms=iou_nms,
+        classes=classes,
+        standin_class_map=node.class_id_map("standin_class_map", classes),
     )
     if final and kind == "coco_standin":
         node._fail("weights_kind", "coco_standin weights are not allowed in a final run")
@@ -335,8 +368,22 @@ def _detector(node: _Node, weights_override: str | None, final: bool) -> Detecto
     return cfg
 
 
+def _output(node: _Node) -> OutputConfig:
+    cfg = OutputConfig(
+        dir=node.string("dir"),
+        annotated_video=node.boolean("annotated_video"),
+        tracks_csv=node.boolean("tracks_csv"),
+    )
+    node.finish()
+    return cfg
+
+
 def _preprocess(node: _Node) -> PreprocessConfig:
-    cfg = PreprocessConfig(low_light_enhance=node.boolean("low_light_enhance"))
+    cfg = PreprocessConfig(
+        low_light_enhance=node.boolean("low_light_enhance"),
+        clahe_clip_limit=node.number("clahe_clip_limit", gt=0.0),
+        clahe_tile_grid=node.integer("clahe_tile_grid", ge=1),
+    )
     node.finish()
     return cfg
 
@@ -441,6 +488,7 @@ def parse_config(
         preprocess=_preprocess(root.child("preprocess")),
         tracker=_tracker(root.child("tracker")),
         behaviour=_behaviour(root.child("behaviour")),
+        output=_output(root.child("output")),
     )
     root.finish()
     if errors:
@@ -448,8 +496,22 @@ def parse_config(
     return cfg
 
 
+STANDIN_WEIGHTS = "weights/coco_standin/yolov8n.pt"
+
+
+def _with_standin(data: Any) -> Any:
+    if not isinstance(data, Mapping) or not isinstance(data.get("detector"), Mapping):
+        return data
+    detector = {**data["detector"], "weights": STANDIN_WEIGHTS, "weights_kind": "coco_standin"}
+    return {**data, "detector": detector}
+
+
 def load_config(
-    path: str | Path, *, final: bool = False, env: Mapping[str, str] | None = None
+    path: str | Path,
+    *,
+    final: bool = False,
+    env: Mapping[str, str] | None = None,
+    standin: bool = False,
 ) -> PipelineConfig:
     path = Path(path)
     try:
@@ -462,7 +524,7 @@ def load_config(
         raise ConfigError(f"config {path} is not valid YAML: {exc}") from exc
     if data is None:
         raise ConfigError(f"config {path} is empty")
-    return parse_config(data, final=final, env=env)
+    return parse_config(_with_standin(data) if standin else data, final=final, env=env)
 
 
 def _hash(obj: Any) -> str:

@@ -49,10 +49,10 @@ src/trafficwatch/
 | Module | Class | Key methods | Notes |
 |---|---|---|---|
 | Ingestion | `VideoIngestor` | `frames()` yields `Frame(idx, t_s, image)` | Reads fps from the file; optional `frame_stride`; validates file opens |
-| Preprocessing | `Preprocessor` | `apply(frame) -> Prepared(image640, scale, pad)` | Letterbox, aspect preserved; optional CLAHE on L channel for low light; no manual normalisation (D-07) |
+| Preprocessing | `Preprocessor` | `apply(frame) -> Prepared(image640, scale, pad, original_wh)`; `Prepared.to_original(xyxy)` maps and clips boxes back | Letterbox, aspect preserved; optional CLAHE on L channel for low light; no manual normalisation (D-07) |
 | Detection | `VehicleDetector` | `detect(prepared) -> list[Detection]` | Boxes mapped back to original coordinates; drops conf below `detector.conf`; class map from model card |
 | Tracking | `VehicleTracker` | `update(detections, frame) -> list[Track]` | `deep-sort-realtime`; only confirmed tracks are emitted; `TrajectoryStore` keeps per-track history |
-| Behaviour | `BehaviourAnalyzer` | `step(tracks, t_s) -> list[Incident]` | Runs the three rules; scene-level context (flow, congestion) computed once per frame |
+| Behaviour | `BehaviourAnalyzer` | `step(tracks, frame_idx, t_s) -> list[Incident]`; constructed with `(cfg, period_s)` | Runs the three rules; scene-level context (flow, congestion) computed once per frame |
 | Incident log | `IncidentLogger` | `write(incident)`, `close()` | Appends CSV; flushes per incident |
 | Evaluation | `evaluation.*` | see doc 05 | Separate from the runtime path |
 
@@ -78,8 +78,11 @@ detector:
   conf: 0.35                                 # calibrated in Phase 4
   iou_nms: 0.6
   classes: [car, van, bus, other, two_wheeler]
+  standin_class_map: { 2: car, 3: two_wheeler, 5: bus, 7: other }   # COCO ids, coco_standin only
 preprocess:
   low_light_enhance: false
+  clahe_clip_limit: 2.0        # used only when low_light_enhance is true
+  clahe_tile_grid: 8
 tracker:
   max_age: 30
   n_init: 3
@@ -95,6 +98,10 @@ behaviour:
   collision: { v_close: 1.5, iou_min: 0.10, min_frames: 3, post_window_s: 1.5, heading_change_deg: 45 }
   suppression: { queue_gap_bh: 1.5, global_slowdown_fraction: 0.5 }
   zones: { driving_lanes: [], exclusion: [] }   # per-camera polygons in pixels
+output:
+  dir: reports                # each run writes reports/<run_id>/
+  annotated_video: true
+  tracks_csv: true
 ```
 
 Startup validation refuses to run when: weights missing or class names differ from the model card; `weights_kind` is `coco_standin` and the run is flagged as final; any threshold missing or out of range; video unreadable; zone polygons malformed.
@@ -143,6 +150,9 @@ The rule text above leaves these open. The target tests in `tests/test_rules_*.p
 | Queue | A track within `queue_gap_bh` body heights ahead (ground-point distance, positive projection on the subject's heading) that is stationary or stopping |
 | Lane obstruction | Stationary sample is `v <= v_stop`; episode duration is `(k - start) * dt` from the first sample of a run of stationary samples; flag at first `k` reaching `min_stationary_s`; flow fraction is moving (`v >= v_move`) over all other active tracks; empty `driving_lanes` means the whole frame |
 | Collision | Pair distance is ground-point distance over mean body height; closing speed is its fall over the smoothing window; contact is the closest-approach sample; heading is the displacement direction over the smoothing window |
+| Score | Margin beyond the threshold, clipped to 0..1: abrupt stop `(drop ratio - drop_ratio) / (1 - drop_ratio)`; lane obstruction `(flow fraction - min_flow_fraction) / (1 - min_flow_fraction)`; collision `(peak closing speed - v_close) / v_close` |
+| Tracker output | Confirmed tracks matched in the current frame only, with the Kalman-filtered box (`to_ltrb()`); a track that is missed for a frame leaves a gap in its history, which the speed estimator treats as uniformly spaced. Phase 4 calibration on real footage decides whether this needs interpolation |
+| Analyzer history | Bounded per track; length derived from the longest configured window (`history_samples`), not a constant |
 | Not pinned | Exact 45 versus 44 degree heading boundary, exact `post_window_s` boundary and exact `rearm_s` boundary (fencepost-sensitive): Phase 2 adds unit tests on the helper functions |
 
 ## 6. Incident log schema (`incidents.csv`)
@@ -161,7 +171,7 @@ The rule text above leaves these open. The target tests in `tests/test_rules_*.p
 | rule_params_hash | Hash of the `behaviour` config block |
 | weights_run_id, weights_kind | Provenance of the detector |
 
-Optional `tracks.csv`: video_id, frame_idx, t_s, track_id, cls_name, x1, y1, x2, y2, conf. Used by tracker evaluation and by white-box replay.
+Optional `tracks.csv`: video_id, frame_idx, t_s, track_id, cls_name, x1, y1, x2, y2 (the tracker does not expose a detection confidence). Used by tracker evaluation and by white-box replay.
 
 ## 7. ERD (report section 4 draft)
 
@@ -229,7 +239,7 @@ sequenceDiagram
         DT-->>CLI: detections (original coordinates)
         CLI->>TR: update(detections, frame)
         TR-->>CLI: confirmed tracks
-        CLI->>BA: step(tracks, t_s)
+        CLI->>BA: step(tracks, frame_idx, t_s)
         alt incident flagged
             BA-->>CLI: Incident
             CLI->>LG: write(incident)
@@ -251,7 +261,7 @@ classDiagram
     class AbruptStopRule
     class LaneObstructionRule
     class CollisionRule
-    class BehaviourAnalyzer { +step(list~Track~, t_s) list~Incident~ }
+    class BehaviourAnalyzer { +step(list~Track~, frame_idx, t_s) list~Incident~ }
     class IncidentLogger { +write(Incident) +close() }
     class Evaluator { +run(outputs, ground_truth) Report }
     Rule <|.. AbruptStopRule

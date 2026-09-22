@@ -59,7 +59,15 @@ ruff check . && ruff format --check .
 
 `requirements.txt` is the local CPU install. `requirements.lock` is the Colab `pip freeze` of the run that produced the reported weights and is added in Phase 3. No model training runs on the local machine.
 
-The pipeline command (`python -m trafficwatch run ...`) arrives in Phase 2.
+Run the pipeline on a video with the COCO stand-in weights (output is labelled `coco_standin` and never enters result tables):
+
+```bash
+python scripts/fetch_standin_weights.py            # once; downloads yolov8n.pt, records its SHA-256
+python -m trafficwatch run path/to/video.mp4 --standin
+pytest -m standin -q                               # real-model smoke tests
+```
+
+Each run writes `reports/<run_id>/` with `incidents.csv`, `tracks.csv`, `annotated.mp4`, `latency.json` and `run_manifest.json`. `--final` refuses stand-in weights.
 
 ## Adding the trained model later
 

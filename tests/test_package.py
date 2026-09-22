@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from trafficwatch.behaviour import (
     AbruptStopRule,
     BehaviourAnalyzer,
@@ -13,9 +15,8 @@ from trafficwatch.behaviour import (
     LaneObstructionRule,
 )
 from trafficwatch.config import load_config
-from trafficwatch.detection import VehicleDetector
+from trafficwatch.detection import VehicleDetector, WeightsError
 from trafficwatch.incident_log import IncidentLogger
-from trafficwatch.ingestion import VideoIngestor
 from trafficwatch.preprocessing import Preprocessor
 from trafficwatch.tracking import TrajectoryStore, VehicleTracker
 
@@ -33,14 +34,25 @@ def test_import_does_not_load_model_libraries():
     assert result.returncode == 0, result.stderr
 
 
-def test_skeleton_classes_construct_from_the_shipped_config(tmp_path):
+def test_pipeline_classes_construct_from_the_shipped_config(tmp_path):
     cfg = load_config(SHIPPED, env={})
-    VideoIngestor(tmp_path / "v.mp4", cfg.run.frame_stride)
     Preprocessor(cfg.preprocess, cfg.detector)
-    VehicleDetector(cfg.detector)
     VehicleTracker(cfg.tracker)
-    TrajectoryStore()
-    IncidentLogger(tmp_path / "incidents.csv", "run", "video")
-    BehaviourAnalyzer(cfg)
+    TrajectoryStore(max_samples=10)
+    IncidentLogger(
+        tmp_path / "incidents.csv",
+        "run",
+        "video",
+        rule_params_hash="h",
+        weights_run_id="w",
+        weights_kind="trained",
+    ).close()
+    BehaviourAnalyzer(cfg, period_s=0.1)
     for rule in (AbruptStopRule, LaneObstructionRule, CollisionRule):
         rule(cfg.behaviour, cfg.tracker.n_init)
+
+
+def test_shipped_config_refuses_to_start_until_real_weights_exist():
+    cfg = load_config(SHIPPED, env={})
+    with pytest.raises(WeightsError, match="weights file not found"):
+        VehicleDetector(cfg.detector)

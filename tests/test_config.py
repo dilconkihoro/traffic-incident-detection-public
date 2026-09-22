@@ -17,7 +17,8 @@ from trafficwatch.config import (
 )
 
 SHIPPED = Path(__file__).resolve().parents[1] / "configs" / "pipeline.yaml"
-SECTIONS = ["run", "detector", "preprocess", "tracker", "behaviour"]
+MAPPING_LEAVES = {"detector.standin_class_map"}
+SECTIONS = ["run", "detector", "preprocess", "tracker", "behaviour", "output"]
 
 
 def shipped_data() -> dict:
@@ -28,7 +29,7 @@ def leaf_paths(node: dict, prefix: str = "") -> list[str]:
     paths = []
     for key, value in node.items():
         path = f"{prefix}{key}"
-        if isinstance(value, dict):
+        if isinstance(value, dict) and path not in MAPPING_LEAVES:
             paths.extend(leaf_paths(value, f"{path}."))
         else:
             paths.append(path)
@@ -78,6 +79,15 @@ BAD_VALUES = [
     ("detector.classes", []),
     ("detector.classes", ["car", "car"]),
     ("detector.classes", "car"),
+    ("detector.standin_class_map", {}),
+    ("detector.standin_class_map", {"car": "car"}),
+    ("detector.standin_class_map", {-1: "car"}),
+    ("detector.standin_class_map", {2: "truck"}),
+    ("preprocess.clahe_clip_limit", 0),
+    ("preprocess.clahe_tile_grid", 0),
+    ("output.dir", ""),
+    ("output.annotated_video", "yes"),
+    ("output.tracks_csv", 1),
     ("preprocess.low_light_enhance", "no"),
     ("preprocess.low_light_enhance", 1),
     ("tracker.max_age", 0),
