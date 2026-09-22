@@ -111,3 +111,137 @@ def test_cli_verify_then_strict_check_fails_until_metadata_is_complete(tmp_path,
         == 0
     )
     assert cli(*base, "check", "--strict").returncode == 0
+
+
+def test_fetch_dhakaai_dry_run_lists_files_without_downloading_or_writing_manifest(
+    tmp_path, monkeypatch
+):
+    import scripts.acquire_datasets as acquire
+
+    from trafficwatch.data import dataverse as dv
+
+    manifest_path = tmp_path / "MANIFEST.json"
+    mf.save_manifest(manifest_path, mf.empty_manifest())
+    payload = {
+        "status": "OK",
+        "data": {
+            "latestVersion": {
+                "fileAccessRequest": False,
+                "license": {
+                    "name": "CC0 1.0",
+                    "uri": "http://creativecommons.org/publicdomain/zero/1.0",
+                },
+                "metadataBlocks": {
+                    "citation": {"fields": [{"typeName": "title", "value": "DhakaAI"}]}
+                },
+                "files": [
+                    {
+                        "dataFile": {"id": 1, "filename": "a.rar", "filesize": 10},
+                        "restricted": False,
+                    },
+                ],
+            }
+        },
+    }
+    monkeypatch.setattr(dv, "fetch_metadata", lambda doi, **_: payload)
+    code = acquire.main(
+        [
+            "--manifest",
+            str(manifest_path),
+            "fetch-dhakaai",
+            "--dry-run",
+            "--out",
+            str(tmp_path / "out"),
+        ]
+    )
+    assert code == 0
+    assert mf.load_manifest(manifest_path)["sources"] == []
+    assert not (tmp_path / "out").exists()
+
+
+def test_fetch_dhakaai_downloads_and_records_each_file(tmp_path, monkeypatch):
+    import scripts.acquire_datasets as acquire
+
+    from trafficwatch.data import dataverse as dv
+
+    manifest_path = tmp_path / "MANIFEST.json"
+    mf.save_manifest(manifest_path, mf.empty_manifest())
+    payload = {
+        "status": "OK",
+        "data": {
+            "latestVersion": {
+                "fileAccessRequest": False,
+                "license": {
+                    "name": "CC0 1.0",
+                    "uri": "http://creativecommons.org/publicdomain/zero/1.0",
+                },
+                "metadataBlocks": {
+                    "citation": {"fields": [{"typeName": "title", "value": "DhakaAI"}]}
+                },
+                "files": [
+                    {
+                        "dataFile": {"id": 1, "filename": "a.rar", "filesize": 3},
+                        "restricted": False,
+                    },
+                ],
+            }
+        },
+    }
+    monkeypatch.setattr(dv, "fetch_metadata", lambda doi, **_: payload)
+
+    def fake_download(file_id, dest, **_):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"abc")
+
+    monkeypatch.setattr(dv, "download_file", fake_download)
+
+    out = tmp_path / "out"
+    code = acquire.main(
+        [
+            "--manifest",
+            str(manifest_path),
+            "fetch-dhakaai",
+            "--out",
+            str(out),
+            "--retrieved",
+            "2026-09-22",
+        ]
+    )
+    assert code == 0
+    (entry,) = mf.load_manifest(manifest_path)["sources"]
+    assert entry["dataset"] == "dhakaai"
+    assert entry["artifact"] == "a.rar"
+    assert entry["licence"] == "CC0 1.0 (http://creativecommons.org/publicdomain/zero/1.0)"
+    assert entry["source_url"] == "https://doi.org/10.7910/DVN/POREXF"
+    assert (out / "a.rar").read_bytes() == b"abc"
+
+
+def test_fetch_dhakaai_refuses_a_gated_dataset(tmp_path, monkeypatch, capsys):
+    import scripts.acquire_datasets as acquire
+
+    from trafficwatch.data import dataverse as dv
+
+    manifest_path = tmp_path / "MANIFEST.json"
+    mf.save_manifest(manifest_path, mf.empty_manifest())
+    payload = {
+        "status": "OK",
+        "data": {
+            "latestVersion": {
+                "fileAccessRequest": True,
+                "license": {
+                    "name": "CC0 1.0",
+                    "uri": "http://creativecommons.org/publicdomain/zero/1.0",
+                },
+                "metadataBlocks": {
+                    "citation": {"fields": [{"typeName": "title", "value": "DhakaAI"}]}
+                },
+                "files": [],
+            }
+        },
+    }
+    monkeypatch.setattr(dv, "fetch_metadata", lambda doi, **_: payload)
+    code = acquire.main(
+        ["--manifest", str(manifest_path), "fetch-dhakaai", "--out", str(tmp_path / "out")]
+    )
+    assert code == 2
+    assert "fileAccessRequest" in capsys.readouterr().err
