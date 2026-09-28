@@ -25,6 +25,12 @@ runs/
 reports/*
 !reports/README.md
 
+# Web dashboard runtime state (webapp/, decision D-25): never a source of truth, never committed
+webapp/backend/*.db
+webapp/frontend/node_modules/
+webapp/frontend/dist/
+docs/progress/node_modules/
+
 # Python
 __pycache__/
 *.py[cod]

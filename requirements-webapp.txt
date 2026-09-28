@@ -1,0 +1,23 @@
+# Extra Python packages for the optional web dashboard (webapp/, decision D-25). The CLI does not
+# need these. Install after requirements.txt, in the same virtual environment:
+#   pip install -r requirements-webapp.txt
+# Pinned from the same Python 3.10 environment as requirements.txt. uvicorn's optional speed-ups
+# (uvloop, httptools, watchfiles, websockets) are left out on purpose: uvloop has no Windows build.
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.1
+bcrypt==5.0.0
+click==8.5.0
+fastapi==0.141.1
+h11==0.16.0
+itsdangerous==2.2.0
+pydantic==2.13.5
+pydantic_core==2.46.5
+python-dotenv==1.2.3
+python-multipart==0.0.32
+starlette==1.6.0
+typing-inspection==0.4.4
+uvicorn==0.53.0
+# Only needed to run the dashboard's test suite (fastapi's TestClient)
+httpcore==1.0.9
+httpx==0.28.1

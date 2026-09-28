@@ -2,7 +2,7 @@
 
 Final-year project, the programme, the university. An automated prototype that reads a pre-recorded fixed-camera CCTV video, detects and tracks vehicles, flags three incident types with transparent rules, and writes a time-stamped incident log. Evaluated on precision, recall, mAP, false-alarm rate, and detection latency.
 
-**Author:** the author, the author Kuria. **reviewer:** the reviewer. **Status:** planning complete, development starting (Phase 0).
+**Author:** the author, the author Kuria. **reviewer:** the reviewer. **Status:** Phase 0 (Foundation) complete; Phase 1 (Data) in progress; Phase 2 (Pipeline) implemented on stand-in weights, pending real video once UA-DETRAC lands. See `docs/PROJECT_GUIDE.md` section 6 for the full phase-by-phase breakdown.
 
 ## What it does
 
@@ -16,7 +16,7 @@ video file -> ingestion -> preprocessing (640 letterbox) -> YOLOv8 detection -> 
 |---|---|
 | Fixed-camera video file | `incidents.csv`, annotated video, latency report, evaluation report |
 
-Data: UA-DETRAC and DhakaAI (public). Scope is strictly offline video files on a desktop; no live streams, plates, pedestrians, or web app. Full scope guard: `the project rules` section 3.
+Data: UA-DETRAC and DhakaAI (public). Core scope is strictly offline video files on a desktop; no live streams, plates, or pedestrians. Full scope guard: `the project rules` section 3. A supplementary web dashboard (`webapp/`, decision D-25) is layered on top for demonstration purposes; it calls this same CLI pipeline and does not change the core scope or how it is evaluated. See `webapp/README.md`.
 
 ## Documentation map
 
@@ -35,6 +35,8 @@ Data: UA-DETRAC and DhakaAI (public). Scope is strictly offline video files on a
 | `docs/EXPERT_KICKOFF_PROMPT.md` | The prompt to start work in the development workspace, plus per-phase prompts |
 | `docs/logs/` | Training, evaluation, implementation, and test-access logs |
 | `docs/reference/` | The specification (docx and text copy) and institutional guides |
+| `webapp/README.md` | The supplementary web dashboard: tech stack, setup, and running it end to end |
+| `docs/PROGRESS_REPORT.docx` | Running progress report for the reviewer, built from `docs/progress/report.json` |
 
 ## Process in one screen
 
@@ -79,6 +81,10 @@ Local training is out of scope (decision D-21). Run `notebooks/colab_train.ipynb
 ## Adding the trained model later
 
 Drop the exported run into `weights/<RUN_ID>/` (needs `best.pt` and `model_card.json`), set `detector.weights` in `configs/pipeline.yaml`, set `weights_kind: trained`, and run the integration checklist in `docs/04_COLAB_TRAINING.md` section 9.
+
+## Web dashboard (supplementary)
+
+A browser UI (`webapp/`, decision D-25: FastAPI + SQLite backend, Vite + React + TypeScript + Tailwind frontend) sits on top of the CLI for demo purposes: login, video upload, a live processing view, and a run history browser. It calls the same pipeline as the CLI and does not change the core scope or evaluation. Setup and running it end to end: `webapp/README.md`.
 
 ## Licence and data notes
 

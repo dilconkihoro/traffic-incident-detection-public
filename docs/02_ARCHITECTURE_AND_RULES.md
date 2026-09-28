@@ -46,24 +46,24 @@ src/trafficwatch/
 
 ## 3. Module contracts
 
-| Module | Class | Key methods | Notes |
-|---|---|---|---|
-| Ingestion | `VideoIngestor` | `frames()` yields `Frame(idx, t_s, image)` | Reads fps from the file; optional `frame_stride`; validates file opens |
-| Preprocessing | `Preprocessor` | `apply(frame) -> Prepared(image640, scale, pad, original_wh)`; `Prepared.to_original(xyxy)` maps and clips boxes back | Letterbox, aspect preserved; optional CLAHE on L channel for low light; no manual normalisation (D-07) |
-| Detection | `VehicleDetector` | `detect(prepared) -> list[Detection]` | Boxes mapped back to original coordinates; drops conf below `detector.conf`; class map from model card |
-| Tracking | `VehicleTracker` | `update(detections, frame) -> list[Track]` | `deep-sort-realtime`; only confirmed tracks are emitted; `TrajectoryStore` keeps per-track history |
-| Behaviour | `BehaviourAnalyzer` | `step(tracks, frame_idx, t_s) -> list[Incident]`; constructed with `(cfg, period_s)` | Runs the three rules; scene-level context (flow, congestion) computed once per frame |
-| Incident log | `IncidentLogger` | `write(incident)`, `close()` | Appends CSV; flushes per incident |
-| Evaluation | `evaluation.*` | see doc 05 | Separate from the runtime path |
+| Module        | Class                 | Key methods                                                                                                               | Notes                                                                                                   |
+| ------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Ingestion     | `VideoIngestor`     | `frames()` yields `Frame(idx, t_s, image)`                                                                            | Reads fps from the file; optional`frame_stride`; validates file opens                                 |
+| Preprocessing | `Preprocessor`      | `apply(frame) -> Prepared(image640, scale, pad, original_wh)`; `Prepared.to_original(xyxy)` maps and clips boxes back | Letterbox, aspect preserved; optional CLAHE on L channel for low light; no manual normalisation (D-07)  |
+| Detection     | `VehicleDetector`   | `detect(prepared) -> list[Detection]`                                                                                   | Boxes mapped back to original coordinates; drops conf below`detector.conf`; class map from model card |
+| Tracking      | `VehicleTracker`    | `update(detections, frame) -> list[Track]`                                                                              | `deep-sort-realtime`; only confirmed tracks are emitted; `TrajectoryStore` keeps per-track history  |
+| Behaviour     | `BehaviourAnalyzer` | `step(tracks, frame_idx, t_s) -> list[Incident]`; constructed with `(cfg, period_s)`                                  | Runs the three rules; scene-level context (flow, congestion) computed once per frame                    |
+| Incident log  | `IncidentLogger`    | `write(incident)`, `close()`                                                                                          | Appends CSV; flushes per incident                                                                       |
+| Evaluation    | `evaluation.*`      | see doc 05                                                                                                                | Separate from the runtime path                                                                          |
 
 Data types (dataclasses, `to_dict()` at module boundaries):
 
-| Type | Fields |
-|---|---|
-| `Frame` | idx, t_s, image (uint8 BGR ndarray) |
-| `Detection` | xyxy, conf, cls_id, cls_name |
-| `Track` | track_id, xyxy, cls_name, age, hits, confirmed |
-| `Incident` | type, track_ids, frame_onset, frame_flag, t_onset_s, t_flag_s, bbox_union, score |
+| Type          | Fields                                                                           |
+| ------------- | -------------------------------------------------------------------------------- |
+| `Frame`     | idx, t_s, image (uint8 BGR ndarray)                                              |
+| `Detection` | xyxy, conf, cls_id, cls_name                                                     |
+| `Track`     | track_id, xyxy, cls_name, age, hits, confirmed                                   |
+| `Incident`  | type, track_ids, frame_onset, frame_flag, t_onset_s, t_flag_s, bbox_union, score |
 
 ## 4. Configuration (`configs/pipeline.yaml`, validated at startup)
 
@@ -141,35 +141,35 @@ Flag for a pair (i, j) when all hold: (1) ground-point distance normalised by me
 
 The rule text above leaves these open. The target tests in `tests/test_rules_*.py` encode them; changing one means changing the tests and logging the decision.
 
-| Item | Definition |
-|---|---|
-| Speed sample | `v_k = dist(g_k, g_(k-S)) / (smoothing_window_s * h_med)`, `S = smoothing_window_s / dt` samples, `h_med` the median box height over the track history. Undefined for `k < S` |
-| Comparisons | Threshold comparisons use a 1e-9 tolerance |
-| Abrupt stop | `a` = last sample with `v >= v_move`; pre-speed = median of `v` over the `window_before_s` samples ending at `a`; `b` = first later sample with `v <= v_stop`; deceleration time = `(b - a) * dt`; post-speed = median of `v` over the `window_after_s` samples starting at `b`; flag at the last of those samples |
-| Global slowdown | Fraction of active tracks (all tracks with a sample at the current frame) whose own stop pattern is met in the same window |
-| Queue | A track within `queue_gap_bh` body heights ahead (ground-point distance, positive projection on the subject's heading) that is stationary or stopping |
-| Lane obstruction | Stationary sample is `v <= v_stop`; episode duration is `(k - start) * dt` from the first sample of a run of stationary samples; flag at first `k` reaching `min_stationary_s`; flow fraction is moving (`v >= v_move`) over all other active tracks; empty `driving_lanes` means the whole frame |
-| Collision | Pair distance is ground-point distance over mean body height; closing speed is its fall over the smoothing window; contact is the closest-approach sample; heading is the displacement direction over the smoothing window |
-| Score | Margin beyond the threshold, clipped to 0..1: abrupt stop `(drop ratio - drop_ratio) / (1 - drop_ratio)`; lane obstruction `(flow fraction - min_flow_fraction) / (1 - min_flow_fraction)`; collision `(peak closing speed - v_close) / v_close` |
-| Tracker output | Confirmed tracks matched in the current frame only, with the Kalman-filtered box (`to_ltrb()`); a track that is missed for a frame leaves a gap in its history, which the speed estimator treats as uniformly spaced. Phase 4 calibration on real footage decides whether this needs interpolation |
-| Analyzer history | Bounded per track; length derived from the longest configured window (`history_samples`), not a constant |
-| Not pinned | Exact 45 versus 44 degree heading boundary, exact `post_window_s` boundary and exact `rearm_s` boundary (fencepost-sensitive): Phase 2 adds unit tests on the helper functions |
+| Item             | Definition                                                                                                                                                                                                                                                                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Speed sample     | `v_k = dist(g_k, g_(k-S)) / (smoothing_window_s * h_med)`, `S = smoothing_window_s / dt` samples, `h_med` the median box height over the track history. Undefined for `k < S`                                                                                                                                                    |
+| Comparisons      | Threshold comparisons use a 1e-9 tolerance                                                                                                                                                                                                                                                                                               |
+| Abrupt stop      | `a` = last sample with `v >= v_move`; pre-speed = median of `v` over the `window_before_s` samples ending at `a`; `b` = first later sample with `v <= v_stop`; deceleration time = `(b - a) * dt`; post-speed = median of `v` over the `window_after_s` samples starting at `b`; flag at the last of those samples |
+| Global slowdown  | Fraction of active tracks (all tracks with a sample at the current frame) whose own stop pattern is met in the same window                                                                                                                                                                                                               |
+| Queue            | A track within`queue_gap_bh` body heights ahead (ground-point distance, positive projection on the subject's heading) that is stationary or stopping                                                                                                                                                                                   |
+| Lane obstruction | Stationary sample is`v <= v_stop`; episode duration is `(k - start) * dt` from the first sample of a run of stationary samples; flag at first `k` reaching `min_stationary_s`; flow fraction is moving (`v >= v_move`) over all other active tracks; empty `driving_lanes` means the whole frame                             |
+| Collision        | Pair distance is ground-point distance over mean body height; closing speed is its fall over the smoothing window; contact is the closest-approach sample; heading is the displacement direction over the smoothing window                                                                                                               |
+| Score            | Margin beyond the threshold, clipped to 0..1: abrupt stop`(drop ratio - drop_ratio) / (1 - drop_ratio)`; lane obstruction `(flow fraction - min_flow_fraction) / (1 - min_flow_fraction)`; collision `(peak closing speed - v_close) / v_close`                                                                                    |
+| Tracker output   | Confirmed tracks matched in the current frame only, with the Kalman-filtered box (`to_ltrb()`); a track that is missed for a frame leaves a gap in its history, which the speed estimator treats as uniformly spaced. Phase 4 calibration on real footage decides whether this needs interpolation                                     |
+| Analyzer history | Bounded per track; length derived from the longest configured window (`history_samples`), not a constant                                                                                                                                                                                                                               |
+| Not pinned       | Exact 45 versus 44 degree heading boundary, exact`post_window_s` boundary and exact `rearm_s` boundary (fencepost-sensitive): Phase 2 adds unit tests on the helper functions                                                                                                                                                        |
 
 ## 6. Incident log schema (`incidents.csv`)
 
-| Column | Meaning |
-|---|---|
-| incident_id | Sequential per run |
-| run_id | Run identifier |
-| video_id | Source file stem |
-| incident_type | ABRUPT_STOP, LANE_OBSTRUCTION, COLLISION_LIKE |
-| track_ids | Semicolon-separated |
-| frame_onset, frame_flag | Frame indices |
-| t_onset_s, t_flag_s | Seconds from video start (frame index over fps) |
-| x1, y1, x2, y2 | Union box at flag time |
-| score | Margin beyond threshold, clipped to 0..1 |
-| rule_params_hash | Hash of the `behaviour` config block |
-| weights_run_id, weights_kind | Provenance of the detector |
+| Column                       | Meaning                                         |
+| ---------------------------- | ----------------------------------------------- |
+| incident_id                  | Sequential per run                              |
+| run_id                       | Run identifier                                  |
+| video_id                     | Source file stem                                |
+| incident_type                | ABRUPT_STOP, LANE_OBSTRUCTION, COLLISION_LIKE   |
+| track_ids                    | Semicolon-separated                             |
+| frame_onset, frame_flag      | Frame indices                                   |
+| t_onset_s, t_flag_s          | Seconds from video start (frame index over fps) |
+| x1, y1, x2, y2               | Union box at flag time                          |
+| score                        | Margin beyond threshold, clipped to 0..1        |
+| rule_params_hash             | Hash of the`behaviour` config block           |
+| weights_run_id, weights_kind | Provenance of the detector                      |
 
 Optional `tracks.csv`: video_id, frame_idx, t_s, track_id, cls_name, x1, y1, x2, y2 (the tracker does not expose a detection confidence). Used by tracker evaluation and by white-box replay.
 
@@ -274,11 +274,11 @@ classDiagram
 
 ## 10. Run modes
 
-| Command | Purpose |
-|---|---|
-| `python -m trafficwatch run <video>` | Video to `incidents.csv` and annotated video |
-| `python -m trafficwatch eval --split <val or test>` | Five-metric evaluation (test requires `--confirm-final` and writes TEST_ACCESS_LOG) |
-| `python -m trafficwatch calibrate` | Grid search of thresholds on val |
-| `python -m trafficwatch bench` | Latency benchmark, warm-up excluded |
+| Command                                               | Purpose                                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `python -m trafficwatch run <video>`                | Video to`incidents.csv` and annotated video                                        |
+| `python -m trafficwatch eval --split <val or test>` | Five-metric evaluation (test requires`--confirm-final` and writes TEST_ACCESS_LOG) |
+| `python -m trafficwatch calibrate`                  | Grid search of thresholds on val                                                     |
+| `python -m trafficwatch bench`                      | Latency benchmark, warm-up excluded                                                  |
 
 Optional `--display` shows an OpenCV window for demos. No web UI (scope guard).

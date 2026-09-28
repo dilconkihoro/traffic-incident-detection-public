@@ -28,6 +28,12 @@ extend-exclude = ["docs"]   # docs hold Markdown with code blocks that are copie
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+# fastapi.Depends(...) as an argument default is the framework's own required pattern, not the
+# mutable-default-argument bug B008 exists to catch.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["trafficwatch", "webapp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
