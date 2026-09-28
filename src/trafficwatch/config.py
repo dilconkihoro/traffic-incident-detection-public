@@ -524,6 +524,11 @@ def load_config(
         raise ConfigError(f"config {path} is not valid YAML: {exc}") from exc
     if data is None:
         raise ConfigError(f"config {path} is empty")
+    if standin:
+        # Standin mode's whole point is to force the general-purpose model regardless of
+        # anything else configured; a stray TW_WEIGHTS in the environment (even a leftover
+        # .env.example placeholder nobody edited) must never be able to override that silently.
+        env = {}
     return parse_config(_with_standin(data) if standin else data, final=final, env=env)
 
 

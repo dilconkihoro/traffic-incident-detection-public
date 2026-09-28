@@ -171,6 +171,19 @@ def test_tw_weights_overrides_and_empty_value_is_ignored():
     assert parse_config(shipped_data(), env={"TW_WEIGHTS": ""}).detector.weights == configured
 
 
+def test_standin_mode_ignores_a_stray_tw_weights_in_the_environment():
+    """A real bug: an unedited .env.example still sets TW_WEIGHTS to the changeme placeholder.
+    Loading it with `standin=True` must still resolve to the real stand-in weights, not fail with
+    a weights-contract violation on the placeholder path."""
+    cfg = load_config(
+        SHIPPED,
+        standin=True,
+        env={"TW_WEIGHTS": "weights/changeme-set-run-id/best.pt"},
+    )
+    assert cfg.detector.weights == "weights/coco_standin/yolov8n.pt"
+    assert cfg.detector.weights_kind == "coco_standin"
+
+
 def test_valid_polygons_are_loaded():
     data = set_path(
         shipped_data(), "behaviour.zones.driving_lanes", [[[0, 0], [100, 0], [100, 50]]]
