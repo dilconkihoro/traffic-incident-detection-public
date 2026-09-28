@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import random
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -138,7 +139,18 @@ class Pipeline:
             detector = VehicleDetector(cfg.detector)
         self.detector = detector
 
-    def run(self, video: str | Path, *, display: bool = False) -> RunResult:
+    def run(
+        self,
+        video: str | Path,
+        *,
+        display: bool = False,
+        on_frame: Callable[[int, int | None], None] | None = None,
+        on_incident: Callable[[Incident], None] | None = None,
+    ) -> RunResult:
+        """``on_frame(frames_done, frames_total)`` and ``on_incident(incident)`` are optional
+        hooks for a live progress view (the webapp dashboard, decision D-25); the CLI does not
+        pass them, so its behaviour is unchanged. ``frames_total`` is None when the source does
+        not report a frame count."""
         cfg, video = self.cfg, Path(video)
         seed_everything(cfg.run.seed)
         ingestor = VideoIngestor(video, cfg.run.frame_stride)
@@ -200,6 +212,10 @@ class Pipeline:
                 for incident in found:
                     incident_log.write(incident)
                     incidents.append(incident)
+                    if on_incident is not None:
+                        on_incident(incident)
+                if on_frame is not None:
+                    on_frame(len(samples[STAGES[0]]), ingestor.frame_count or None)
                 if track_log is not None:
                     for track in tracks:
                         track_log.write(track, frame.idx, frame.t_s)

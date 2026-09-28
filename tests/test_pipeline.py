@@ -159,6 +159,23 @@ def test_abrupt_stop_end_to_end_matches_the_hand_computed_frame(abrupt_result):
     assert json.loads((result.out_dir / "latency.json").read_text(encoding="utf-8"))["fps"] > 0
 
 
+def test_on_frame_and_on_incident_hooks_are_called_correctly(tmp_path):
+    """Optional progress hooks (added for the webapp dashboard, decision D-25); the CLI never
+    passes them, so this only tests the additive behaviour, not a change to the default path."""
+    frame_calls: list[tuple[int, int | None]] = []
+    incident_calls: list[IncidentType] = []
+    frames, detections = render_scene(abrupt_stop_paths())
+    clip = write_video(tmp_path / "scene.mp4", frames, fps=10.0)
+    result = Pipeline(cfg_with(tmp_path), ScriptedDetector(detections)).run(
+        clip,
+        on_frame=lambda done, total: frame_calls.append((done, total)),
+        on_incident=lambda incident: incident_calls.append(incident.type),
+    )
+    assert frame_calls == [(n, 51) for n in range(1, 52)]
+    assert incident_calls == [IncidentType.ABRUPT_STOP]
+    assert len(result.incidents) == 1
+
+
 def test_annotated_video_has_every_frame_at_the_source_size(abrupt_result):
     annotated = VideoIngestor(abrupt_result.out_dir / "annotated.mp4")
     assert (annotated.width, annotated.height) == (640, 480)
