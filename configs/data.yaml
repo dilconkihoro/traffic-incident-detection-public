@@ -1,12 +1,36 @@
 seed: 0
-stride: 5                      # D-06 default, confirm from EDA
+stride: 5                      # D-06 default; 140k frames / 5 ~= 28k training candidates
 val_sequences: 10              # D-08: about 10 to 12 official-train sequences
-unified_classes: [car, van, bus, other, two_wheeler]   # D-04 open: decide after EDA
+unified_classes: [car, van, bus, other]   # D-04 DECIDED 2026-10-02 (docs/07): no two_wheeler class
 mask_colour: [114, 114, 114]   # Ultralytics letterbox grey
 ignored_box_overlap: 0.5       # drop labels with at least this share inside an ignored region
 dhaka:
   phash_max_distance: 4        # Hamming bits on a 64-bit perceptual hash
-  fractions: { train: 0.8, dhaka_val: 0.1, dhaka_test: 0.1 }   # VERIFY against the release
-class_map:                     # DRAFT from docs/03 section 4; VERIFY names against the real files
+  fractions: { train: 0.8, dhaka_val: 0.1, dhaka_test: 0.1 }
+class_map:                     # Final, from docs/03 section 4's real census and D-04's resolution
   ua-detrac: { car: car, van: van, bus: bus, others: other }
-  dhakaai: {}                  # fill in after inspecting the dataset (Phase 1 step 1.0)
+  dhakaai:
+    car: car
+    suv: car
+    taxi: car
+    policecar: car
+    van: van
+    minivan: van
+    bus: bus
+    minibus: bus
+    truck: other
+    pickup: other
+    human hauler: other
+    army vehicle: other
+    garbagevan: other
+    ambulance: other
+    # Two- and three-wheelers are dropped, not folded into `other`: UA-DETRAC labels none of
+    # them, so mapping them to `other` would teach that class a shape UA-DETRAC's own
+    # unlabelled background actively contradicts (docs/03 section 4, docs/07 D-04).
+    rickshaw: null
+    three wheelers (CNG): null
+    auto rickshaw: null
+    motorbike: null
+    scooter: null
+    bicycle: null
+    wheelbarrow: null

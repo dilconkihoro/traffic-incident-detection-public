@@ -31,8 +31,13 @@ def with_value(path: str, value) -> dict:
 def test_shipped_data_config_is_valid():
     cfg = load_data_config(SHIPPED)
     assert cfg.stride == 5
+    assert cfg.unified_classes == ("car", "van", "bus", "other")
     assert cfg.class_map["ua-detrac"]["others"] == "other"
-    assert cfg.class_map["dhakaai"] == {}
+    assert cfg.class_map["dhakaai"]["car"] == "car"
+    assert cfg.class_map["dhakaai"]["ambulance"] == "other"
+    # Two- and three-wheelers are dropped (mapped to null), not folded into `other` (D-04).
+    assert cfg.class_map["dhakaai"]["rickshaw"] is None
+    assert cfg.class_map["dhakaai"]["motorbike"] is None
 
 
 BAD = [

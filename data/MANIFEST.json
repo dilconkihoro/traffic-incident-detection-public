@@ -55,6 +55,17 @@
       "doi": "VERIFY",
       "licence": "VERIFY",
       "retrieved": "2026-09-22"
+    },
+    {
+      "dataset": "yolo_ds_v1",
+      "artifact": "yolo_ds_v1.tar",
+      "sha256": "617c0fb32a6429903063280184be260e092ca2d471c3dc549e3ac9a892ddd1f9",
+      "size_bytes": 3491676160,
+      "retrieval": "derived",
+      "source_url": "derived locally by scripts/convert_to_yolo.py from data/raw/ua-detrac and data/raw/dhakaai",
+      "doi": "n/a",
+      "licence": "inherits UA-DETRAC VERIFY and DhakaAI CC0 1.0, see docs/MANIFEST.json raw entries",
+      "retrieved": "2026-10-02"
     }
   ]
 }
