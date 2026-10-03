@@ -57,7 +57,7 @@ docs/~*
 .DS_Store
 
 # AI and agent material stays local
-the project rules
+CLAUDE.md
 AGENTS.md
 .claude/
 .kilo/
