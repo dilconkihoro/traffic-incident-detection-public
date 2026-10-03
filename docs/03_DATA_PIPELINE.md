@@ -1,8 +1,8 @@
 # 03. Data pipeline (acquisition to Colab-ready dataset)
 
-Follows a seven-step ML process: collection, EDA, cleaning, preparation, training, evaluation, deployment. This file covers steps 1 to 4. Each step produces an artifact and a written insight for report section 5.3.
+Follows a seven-step ML process: collection, EDA, cleaning, preparation, training, evaluation, deployment. This file covers steps 1 to 4. Each step produces an artifact and a written insight for Report section 5.3.
 
-Items marked **VERIFY** are recalled facts that must be checked against the downloaded release before they are written into any section.
+Items marked **VERIFY** are recalled facts that must be checked against the downloaded release before they are written into any report.
 
 **Status (2026-10-02): built.** `scripts/convert_to_yolo.py` and `scripts/eda_dataset.py` exist and
 have both been run for real against the full downloaded archives, not only tested against
@@ -18,7 +18,7 @@ is the uploader's original name, never the file actually in the archive (every i
 its label by sharing the XML's own stem instead); two DhakaAI files (`Pias (359).xml`,
 `Pias (360).xml`) embed `<width>0</width><height>0</height>` and are skipped, the same class of
 upstream error as the already-known `231.xml` anomaly. Full details in
-`docs/logs/IMPLEMENTATION_RUN_LOG.md`.
+the implementation run log.
 
 ## 1. Step map
 
@@ -144,7 +144,7 @@ For T3 (UA-DETRAC plus DhakaAI), `train` becomes a list `[images/train, images/d
 - Ground-truth trajectory files exported from the XML for oracle-event generation and tracker evaluation.
 - Adjudication sheet template for manual review of flagged events (Tier B).
 
-## 8. Insights checklist for report section 5.3
+## 8. Insights checklist for Report section 5.3
 
 Sources and licence; retrieval method; sizes; sequences and frames per split; boxes per class; box-size distribution (small and distant vehicles); weather and night share; ignored-region handling; stride and why; class mapping and label-noise decision; leakage check outcome; before and after counts.
 

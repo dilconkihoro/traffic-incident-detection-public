@@ -1,6 +1,6 @@
 """Admin auth: one account, hashed password, signed session cookie, rate-limited login.
 
-Fail-closed rules (the project rules security defaults, applied here):
+Fail-closed rules (project security defaults, applied here):
 - password verification uses bcrypt's own constant-time check, never `==`
 - every route but /api/login and /api/logout requires a valid session, checked before any
   business logic runs

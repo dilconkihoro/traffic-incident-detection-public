@@ -1,7 +1,6 @@
-"""SQLite index of runs: an embedded single file, not a database server (specification 3.7 excludes a
-database server for the core CLI scope; this supplementary layer is a different thing, and even
-so stays as light as possible). The source of truth for incident data is always
-reports/<run_id>/incidents.csv; this index only speeds up listing runs for the dashboard."""
+"""SQLite index of runs: an embedded single file, not a database server.
+The source of truth for incident data is always reports/<run_id>/incidents.csv;
+this index only speeds up listing runs for the dashboard."""
 
 from __future__ import annotations
 

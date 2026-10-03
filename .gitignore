@@ -56,7 +56,7 @@ docs/~*
 .idea/
 .DS_Store
 
-# AI and agent material stays local (project the project rules, public-repo rules)
+# AI and agent material stays local
 the project rules
 AGENTS.md
 .claude/

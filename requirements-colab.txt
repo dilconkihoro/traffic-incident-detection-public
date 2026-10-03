@@ -6,7 +6,7 @@
 #
 # After a run completes, the notebook's export cell writes the real `pip freeze` of that run
 # into the Drive export folder as `requirements.lock`; bring that file back to the repo root
-# once a reported run is selected (the project rules section 7). This file is a starting pin, not that
+# once a reported run is selected (project rules section 7). This file is a starting pin, not that
 # record.
 
 ultralytics==8.4.158

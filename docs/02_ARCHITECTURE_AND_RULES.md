@@ -1,6 +1,6 @@
 # 02. Architecture, contracts, and behaviour rules
 
-Design source for report section 4 and for the code. All threshold values here are **PROVISIONAL defaults**; they are calibrated on the validation split in Phase 4 and then frozen in `configs/pipeline.yaml`.
+Design source for Report section 4 and for the code. All threshold values here are **PROVISIONAL defaults**; they are calibrated on the validation split in Phase 4 and then frozen in `configs/pipeline.yaml`.
 
 ## 1. Architecture
 
@@ -173,7 +173,7 @@ The rule text above leaves these open. The target tests in `tests/test_rules_*.p
 
 Optional `tracks.csv`: video_id, frame_idx, t_s, track_id, cls_name, x1, y1, x2, y2 (the tracker does not expose a detection confidence). Used by tracker evaluation and by white-box replay.
 
-## 7. ERD (report section 4 draft)
+## 7. ERD (Report section 4 draft)
 
 ```mermaid
 erDiagram
@@ -216,7 +216,7 @@ erDiagram
     }
 ```
 
-## 8. Sequence (one detection cycle, report section 4 draft)
+## 8. Sequence (one detection cycle, Report section 4 draft)
 
 ```mermaid
 sequenceDiagram
@@ -248,7 +248,7 @@ sequenceDiagram
     CLI-->>U: incidents.csv, annotated.mp4, latency.json
 ```
 
-## 9. Class diagram (report section 4 draft)
+## 9. Class diagram (Report section 4 draft)
 
 ```mermaid
 classDiagram

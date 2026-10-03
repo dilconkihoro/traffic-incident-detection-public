@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 EM_DASH = chr(0x2014)
 SUFFIXES = {".py", ".md", ".yaml", ".yml", ".toml", ".json", ".txt", ".ipynb"}
-SCAN_ROOTS = ["src", "tests", "scripts", "configs", "notebooks", "docs", "README.md", "the project rules"]
+SCAN_ROOTS = ["src", "tests", "scripts", "configs", "notebooks", "docs", "README.md"]
 TOKEN_PATTERNS = [
     re.compile(r"hf_[A-Za-z0-9]{20,}"),
     re.compile(r"ghp_[A-Za-z0-9]{20,}"),

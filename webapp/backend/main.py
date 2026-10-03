@@ -1,4 +1,4 @@
-"""FastAPI app for the supplementary web dashboard (decision D-25, docs/07_DECISIONS_RISKS.md).
+"""FastAPI app for the supplementary web dashboard (decision D-25, the decision log).
 
 Refuses to start on a missing or invalid configuration (fail closed, same principle as
 trafficwatch.config): see webapp/backend/settings.py. Never modifies src/trafficwatch/ behaviour

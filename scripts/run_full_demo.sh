@@ -3,7 +3,7 @@
 # Two parts:
 #   1. The real AI model (YOLOv8n stand-in) on a real UA-DETRAC video.
 #   2. The Tier C synthetic scenarios (known ground truth, tests the rule engine and tracker).
-# See docs/PROJECT_GUIDE.md for what each stage means, and docs/05_EVALUATION_AND_TESTING.md
+# See the project guide for what each stage means, and docs/05_EVALUATION_AND_TESTING.md
 # section 1.1 for why Tier C uses ground-truth boxes instead of the real model.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -43,7 +43,7 @@ echo "close the file properly). The full, un-trimmed sequence (data/samples/MVI_
 echo "frames) is also here if you want to run it yourself later; on CPU alone it is slow enough"
 echo "that it is not part of this walkthrough."
 if [ ! -f data/samples/MVI_20011_short.mp4 ]; then
-  echo "ERROR: data/samples/MVI_20011_short.mp4 not found. Ask the assistant to extract another sequence,"
+  echo "ERROR: data/samples/MVI_20011_short.mp4 not found. Extract another sequence,"
   echo "or point this script at any other video: $PY -m trafficwatch run <your_video.mp4> --standin"
   exit 1
 fi

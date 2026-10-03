@@ -13,7 +13,7 @@ STANDIN_RUN_ID = "coco_standin"
 
 
 class WeightsError(ValueError):
-    """The weights do not satisfy the weights contract (the project rules section 6)."""
+    """The weights do not satisfy the weights contract (project rules section 6)."""
 
 
 def check_weights_contract(cfg: DetectorConfig, ultralytics_version: str) -> dict[str, Any] | None:

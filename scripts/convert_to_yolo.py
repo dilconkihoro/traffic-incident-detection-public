@@ -7,7 +7,7 @@ strides UA-DETRAC frames, writes YOLO labels and images, and packages a determin
 
 Scope for this run, deliberate: official UA-DETRAC **test** sequence images are parsed only for
 the leakage check and never converted or written here. Building that split is Phase 5 work, the
-one time the test split is actually touched (the project rules rule 2); converting it now would be
+one time the test split is actually touched (project rule 2); converting it now would be
 needless test-data handling with no use until then.
 """
 

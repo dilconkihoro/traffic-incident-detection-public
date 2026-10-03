@@ -3,7 +3,7 @@
 A browser-based demo layer on top of the CLI: log in, upload a CCTV video, watch it get processed
 with live progress, and browse past runs with their before (original upload) and after (annotated,
 tracked) video, incident log, and full track log. This is a supplementary showcase (decision D-25,
-`docs/07_DECISIONS_RISKS.md`), not a replacement for the CLI. The CLI
+the decision log), not a replacement for the CLI. The CLI
 (`python -m trafficwatch run <video>`) plus its `incidents.csv` and annotated video output remain
 the official interface and the primary, evaluated deliverable (decision D-13). This dashboard calls
 the same `trafficwatch` pipeline underneath; it does not duplicate or change any of its detection,
@@ -179,6 +179,6 @@ slower and drives the real stand-in model through the full HTTP API end to end.
 
 ## What this deliberately is not
 
-- Not a replacement for the CLI, which stays the primary, tested, reviewed deliverable.
+- Not a replacement for the CLI, which stays the primary, tested deliverable.
 - Not a database server, message queue, or container deployment.
 - Not literal real-time video processing (see the speed note above).

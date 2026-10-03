@@ -1,6 +1,6 @@
 # 05. Evaluation and testing protocol
 
-This file is the contract for every number in report section 5. The specification names five metrics and gives one-line definitions (1.3.2 v, 3.6); the operational definitions below make them computable and defensible. Items marked PROVISIONAL are ratified at the end of prototype cycle P1.
+This file is the contract for every number in Report section 5. the specification names five metrics and gives one-line definitions (1.3.2 v, 3.6); the operational definitions below make them computable and defensible. Items marked PROVISIONAL are ratified at the end of prototype cycle P1.
 
 ## 1. The core problem to solve first
 
@@ -12,7 +12,7 @@ UA-DETRAC and DhakaAI label **vehicles**, not **incidents**. Neither contains gr
 | B. Adjudicated events | Two-pass manual review of pipeline flags on a fixed set of test clips: each flag labelled true event, false alarm, or ambiguous; plus a scan of the same clips for missed events. Record the review protocol and, if a second reviewer is available, agreement. | Real-footage precision of flags, false alarms per hour, qualitative failure modes | Recall on rare events not present in the clips |
 | C. Synthetic scenarios | Hand-built trajectories with known ground truth (white-box) | Rule logic is correct at and around every threshold | Anything about real video |
 
-Optional Tier D (crash clips from public collision datasets) is a scope change; do not do it without D-14 approval. State in report section 5 and 6 that real-collision recall is not established by this study.
+Optional Tier D (crash clips from public collision datasets) is a scope change; do not do it without D-14 approval. State in Report section 5 and 6 that real-collision recall is not established by this study.
 
 ### 1.1 Tier C in practice: `scripts/make_demo_clip.py` (added 2026-09-22)
 
@@ -46,7 +46,7 @@ Every scenario is covered end to end (not just at the rule level) in `tests/test
 | Precision, recall | At IoU 0.5 and a stated confidence operating point (report the point) | Ultralytics `val` |
 | mAP50, mAP50:95 | Ultralytics COCO-style mAP over unified classes, `conf=0.001` | Ultralytics `val` |
 
-Report on `val` (selection), on `test` once (final), on `dhaka_val` (cross-domain). Stratify by UA-DETRAC weather and night where the sequence attribute exists (specification 2.2 and the day-night gap). State plainly that these are Ultralytics mAP values, not the official DETRAC toolkit score, and are not leaderboard-comparable.
+Report on `val` (selection), on `test` once (final), on `dhaka_val` (cross-domain). Stratify by UA-DETRAC weather and night where the sequence attribute exists. State plainly that these are Ultralytics mAP values, not the official DETRAC toolkit score, and are not leaderboard-comparable.
 
 ### 2.2 Tracker (supporting)
 
@@ -76,7 +76,7 @@ Measurement rules: `time.perf_counter`; `torch.cuda.synchronize()` before each c
 4. Record the full trade-off table and curve (recall versus FAR). Freeze the chosen point in config, log the config hash.
 5. No further changes after the freeze except through a logged decision and a full re-evaluation.
 
-## 4. Test pyramid (specification 3.6)
+## 4. Test pyramid
 
 | Level | Framework and scope | Examples (IDs use `TC-<level>-<n>`) |
 |---|---|---|
@@ -89,7 +89,7 @@ Measurement rules: `time.perf_counter`; `torch.cuda.synchronize()` before each c
 
 Stand-in weights are acceptable for unit, white-box, integration, and pipeline smoke tests; not for any reported metric.
 
-## 5. report section 5.5 results table (institutional format)
+## 5. Report section 5.5 results table (results format)
 
 | Test case | Description | Test data | Experimental outcome | Verdict |
 |---|---|---|---|---|
@@ -103,11 +103,11 @@ Every row links to a pytest node ID or a run ID. Verdicts are Pass, Fail, or Fai
 |---|---|---|
 | Detector mAP50 on `val` | At least 0.85 | In-domain fine-tune should beat COCO zero-shot by a wide margin; confirm from T0 and T1 |
 | Detector recall at operating conf | At least 0.85 | Missed vehicles become missed incidents |
-| False alarms | At most 1 per video hour on val at the frozen point | Operator trust (specification 2.4 gap four) |
-| End-to-end speed | Real time at the source frame rate on Colab T4 (for example 25 FPS); lab machine reported as measured, no target | specification "near-real-time" requirement |
+| False alarms | At most 1 per video hour on val at the frozen point | Operator trust |
+| End-to-end speed | Real time at the source frame rate on Colab T4 (for example 25 FPS); lab machine reported as measured, no target | "near-real-time" requirement in the specification |
 | Tests | 100 percent of unit, white-box, integration cases pass | Gate for G5 |
 
-If a target is missed, report the result and analyse why (report section 5.5 and 6); do not move the goalposts after seeing test results.
+If a target is missed, report the result and analyse why (Report section 5.5 and 6); do not move the goalposts after seeing test results.
 
 ## 7. Reproducibility manifest (stored in every `eval_report.json`)
 
@@ -115,4 +115,4 @@ git SHA and dirty flag, config hash, `behaviour` block hash, weights run ID and 
 
 ## 8. Report outputs
 
-`reports/<run_id>/eval_report.json` (machine), `reports/<run_id>/latency.json`, plots (PR curves, recall versus FAR, latency distribution, confusion matrix, per-weather bars) generated by a script from the JSON, saved as PNG into `docs/evidence/` with figure IDs. Summaries are copied into `docs/logs/EVAL_LOG.md` with run IDs.
+`reports/<run_id>/eval_report.json` (machine), `reports/<run_id>/latency.json`, plots (PR curves, recall versus FAR, latency distribution, confusion matrix, per-weather bars) generated by a script from the JSON, saved as PNG into `docs/evidence/` with figure IDs. Summaries are copied into the evaluation log with run IDs.

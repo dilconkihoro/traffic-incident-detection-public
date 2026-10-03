@@ -1,4 +1,4 @@
-"""Reproducibility manifest written with every run (the project rules ML rule 5)."""
+"""Reproducibility manifest written with every run (project ML rule 5)."""
 
 from __future__ import annotations
 

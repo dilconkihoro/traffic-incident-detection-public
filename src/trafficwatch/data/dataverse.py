@@ -17,9 +17,7 @@ from typing import IO, Any
 API_ROOT = "https://dataverse.harvard.edu"
 # Dataverse's edge blocks the default urllib User-Agent (verified 2026-09-22); an identifying
 # one is enough, no need to imitate a browser.
-USER_AGENT = (
-    "trafficwatch-acquire-script/1.0 (+https://github.com/dilconkihoro/traffic-incident-detection)"
-)
+USER_AGENT = "trafficwatch-acquire-script/1.0"
 Opener = Callable[[str], IO[bytes]]
 
 

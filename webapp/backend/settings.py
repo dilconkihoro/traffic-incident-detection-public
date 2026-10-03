@@ -1,7 +1,7 @@
 """Web dashboard settings, validated at startup, fail closed (same principle as
 trafficwatch.config: a missing or too-short secret must stop the app, not run insecurely).
 
-This layer is supplementary (decision D-25, docs/07_DECISIONS_RISKS.md): it never touches
+This layer is supplementary (decision D-25, the decision log): it never touches
 src/trafficwatch/, only calls it, the same way scripts/make_demo_clip.py already does.
 """
 

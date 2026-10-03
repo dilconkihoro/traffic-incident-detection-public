@@ -9,4 +9,4 @@ reports/<run_id>/eval_report.json     five-metric report with reproducibility ma
 reports/<run_id>/latency.json         per-stage timing, p50/p95, hardware string
 ```
 
-Numbers that go into the report are copied into `docs/logs/EVAL_LOG.md` with the run ID.
+Numbers that go into the report are copied into the evaluation log with the run ID.

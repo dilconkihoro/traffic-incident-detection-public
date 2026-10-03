@@ -9,7 +9,7 @@ script ever sees a prediction. Once a trained model exists (T1 onward), its clas
 ``yolo_ds_v1`` directly and Ultralytics' own `val()` is the right tool (decision D-18); this
 script would be a needless reimplementation of it at that point and is not meant to replace it.
 
-Stand-in numbers never enter a final result table (the project rules ML rule 6); this run is logged and
+Stand-in numbers never enter a final result table (project ML rule 6); this run is logged and
 reported as the explicit T0 zero-shot baseline, not as a final detector result.
 """
 
@@ -166,7 +166,7 @@ def evaluate(
         "manifest": manifest,
         "note": (
             "T0 zero-shot baseline (coco_standin weights): excluded from any final result "
-            "table (the project rules ML rule 6). mAP values are this project's own Ultralytics-style "
+            "table (project ML rule 6). mAP values are this project's own Ultralytics-style "
             "(101-point interpolated) implementation, not the official DETRAC toolkit score, "
             "and are not leaderboard-comparable (docs/05 section 2.1)."
         ),
