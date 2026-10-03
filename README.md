@@ -77,4 +77,4 @@ A browser UI (`webapp/`: FastAPI and SQLite backend, Vite, React, TypeScript and
 
 ## Licence and data
 
-Licence: not yet chosen. Ultralytics YOLOv8 is AGPL-3.0, which applies to code and weights derived from it, so the licence choice must account for it. Datasets are not redistributed; their sources, licences and hashes are recorded in `data/MANIFEST.json`.
+The code is licensed under the GNU Affero General Public License v3.0 (see `LICENSE`), matching the AGPL-3.0 licence of Ultralytics YOLOv8, which this project builds on. Datasets are not redistributed; their sources, licences and hashes are recorded in `data/MANIFEST.json`.
