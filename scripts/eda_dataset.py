@@ -150,8 +150,8 @@ def write_plots(ua: dict, dhaka: dict, evidence_dir: Path) -> list[str]:
     ax.scatter(raw["box_widths"][::50], raw["box_heights"][::50], s=4, alpha=0.4)
     ax.set_xlabel("box width (px)")
     ax.set_ylabel("box height (px)")
-    ax.set_title("F5.1: UA-DETRAC train box size distribution (every 50th box)")
-    path = evidence_dir / "F5.1_ua_detrac_box_sizes.png"
+    ax.set_title("F5.3a: UA-DETRAC train box size distribution (every 50th box)")
+    path = evidence_dir / "F5.3a_ua_detrac_box_sizes.png"
     fig.savefig(path, dpi=120, bbox_inches="tight")
     plt.close(fig)
     written.append(str(path))
@@ -160,8 +160,8 @@ def write_plots(ua: dict, dhaka: dict, evidence_dir: Path) -> list[str]:
     ax.hist(raw["boxes_per_frame"], bins=30)
     ax.set_xlabel("vehicles per frame")
     ax.set_ylabel("frame count")
-    ax.set_title("F5.2: UA-DETRAC train boxes-per-frame distribution")
-    path = evidence_dir / "F5.2_ua_detrac_boxes_per_frame.png"
+    ax.set_title("F5.3b: UA-DETRAC train boxes-per-frame distribution")
+    path = evidence_dir / "F5.3b_ua_detrac_boxes_per_frame.png"
     fig.savefig(path, dpi=120, bbox_inches="tight")
     plt.close(fig)
     written.append(str(path))
@@ -172,8 +172,8 @@ def write_plots(ua: dict, dhaka: dict, evidence_dir: Path) -> list[str]:
     ax.set_xticks(range(len(items)))
     ax.set_xticklabels([k for k, _ in items], rotation=60, ha="right")
     ax.set_ylabel("box count")
-    ax.set_title("F5.3: DhakaAI class imbalance (train.rar)")
-    path = evidence_dir / "F5.3_dhakaai_class_imbalance.png"
+    ax.set_title("F5.3c: DhakaAI class imbalance (train.rar)")
+    path = evidence_dir / "F5.3c_dhakaai_class_imbalance.png"
     fig.savefig(path, dpi=120, bbox_inches="tight")
     plt.close(fig)
     written.append(str(path))

@@ -10,7 +10,9 @@ fixtures. Result: `data/processed/yolo_ds_v1.tar` (3.49 GB, sha256 recorded in
 `data/MANIFEST.json`), containing 16,427 UA-DETRAC images (13,855 train / 2,572 val, stride 5,
 ignored regions masked, 50 train and 10 val sequences, leakage-checked against the 40 official
 test sequences) and 3,000 DhakaAI images (2,400 / 300 / 300 by perceptual-hash cluster, 80/10/10).
-`eda_insights.json` and figures F5.1 to F5.3 are in `docs/evidence/`. Gate G1 (`docs/01`) passes.
+`eda_insights.json` and figures F5.3a to F5.3c are in `docs/evidence/` (docs/06's own registry
+reserves F5.1 and F5.2 for the lab-machine and Colab screenshots, not generated plots; these three
+EDA plots are grouped under its single F5.3 entry). Gate G1 (`docs/01`) passes.
 Two real data defects found and handled while building this, not assumed away: DhakaAI's `<filename>`
 is the uploader's original name, never the file actually in the archive (every image is matched to
 its label by sharing the XML's own stem instead); two DhakaAI files (`Pias (359).xml`,

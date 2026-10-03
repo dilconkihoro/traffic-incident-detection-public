@@ -19,7 +19,7 @@ from trafficwatch.types import Frame
 ROOT = Path(__file__).resolve().parents[1]
 SHIPPED = ROOT / "configs" / "pipeline.yaml"
 ULTRALYTICS = importlib.metadata.version("ultralytics")
-CLASSES = ["car", "van", "bus", "other", "two_wheeler"]
+CLASSES = ["car", "van", "bus", "other"]
 
 
 def base_cfg():
@@ -130,18 +130,18 @@ def test_standin_passes_config_thresholds_and_filters_coco_classes(tmp_path):
     model = FakeModel([letterbox((0, 0, 300, 300))], [0.8], [7])
     VehicleDetector(standin_cfg(tmp_path), model=model).detect(prepared_1080p())
     assert model.calls == [
-        {"imgsz": 640, "conf": 0.35, "iou": 0.6, "classes": [2, 3, 5, 7], "verbose": False}
+        {"imgsz": 640, "conf": 0.35, "iou": 0.6, "classes": [2, 5, 7], "verbose": False}
     ]
 
 
 def test_standin_maps_every_configured_coco_class(tmp_path):
-    coords = [letterbox((100 * i, 100, 100 * i + 80, 200)) for i in range(1, 5)]
-    model = FakeModel(coords, [0.9] * 4, [2, 3, 5, 7])
+    coords = [letterbox((100 * i, 100, 100 * i + 80, 200)) for i in range(1, 4)]
+    model = FakeModel(coords, [0.9] * 3, [2, 5, 7])
     names = [
         d.cls_name
         for d in VehicleDetector(standin_cfg(tmp_path), model=model).detect(prepared_1080p())
     ]
-    assert names == ["car", "two_wheeler", "bus", "other"]
+    assert names == ["car", "bus", "other"]
 
 
 def test_unmapped_classes_and_degenerate_boxes_are_dropped(tmp_path):
@@ -156,10 +156,10 @@ def test_no_detections_gives_an_empty_list(tmp_path):
 
 
 def test_trained_weights_use_class_ids_directly_and_carry_the_run_id(tmp_path):
-    model = FakeModel([letterbox((192, 108, 576, 432))], [0.7], [4])
+    model = FakeModel([letterbox((192, 108, 576, 432))], [0.7], [3])
     detector = VehicleDetector(trained_cfg(write_run(tmp_path)), model=model)
     (detection,) = detector.detect(prepared_1080p())
-    assert (detection.cls_id, detection.cls_name) == (4, "two_wheeler")
+    assert (detection.cls_id, detection.cls_name) == (3, "other")
     assert detector.weights_run_id == "R1"
     assert model.calls[0]["classes"] is None
 
