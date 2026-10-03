@@ -3,7 +3,7 @@
 # Two parts:
 #   1. The real AI model (YOLOv8n stand-in) on a real UA-DETRAC video.
 #   2. The Tier C synthetic scenarios (known ground truth, tests the rule engine and tracker).
-# See the project guide for what each stage means, and docs/05_EVALUATION_AND_TESTING.md
+# See docs/08_SETUP_AND_PORTABILITY.md for setup, and docs/05_EVALUATION_AND_TESTING.md
 # section 1.1 for why Tier C uses ground-truth boxes instead of the real model.
 set -euo pipefail
 cd "$(dirname "$0")/.."
