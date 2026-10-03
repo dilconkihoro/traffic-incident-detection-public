@@ -55,3 +55,10 @@ docs/~*
 !.vscode/extensions.json
 .idea/
 .DS_Store
+
+# AI and agent material stays local (project the project rules, public-repo rules)
+the project rules
+AGENTS.md
+.claude/
+.kilo/
+docs/EXPERT_KICKOFF_PROMPT.md
