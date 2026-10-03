@@ -42,7 +42,7 @@ venv/
 .ruff_cache/
 .ipynb_checkpoints/
 
-# Reference material (specification docx, institutional guides) stays local; the rest of docs/ is tracked
+# Reference material stays local
 docs/reference/
 
 # Review and scratch docs (may name unfixed gaps)
@@ -62,3 +62,15 @@ AGENTS.md
 .claude/
 .kilo/
 docs/EXPERT_KICKOFF_PROMPT.md
+
+# Planning, decision, run-log and progress material stays local
+docs/00_PROJECT_CONTEXT.md
+docs/01_MASTER_PLAN.md
+docs/04_COLAB_TRAINING.md
+docs/06_DOCUMENTATION_PLAN.md
+docs/07_DECISIONS_RISKS.md
+docs/PROJECT_GUIDE.md
+docs/PROGRESS_REPORT*
+docs/PRESENTATION_JOURNEY.md
+docs/logs/
+docs/progress/
