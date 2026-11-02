@@ -6,8 +6,8 @@ shell you should use on that platform.
 
 **Verification status, read this first.** The steps were run end to end on Ubuntu Linux (x86_64,
 CPU only, Python 3.10): clone, virtual environment, pinned install, the full test suite (no
-failures), the CLI, and the dataset tools. The macOS steps were run on Apple silicon up to
-the test suite; they differ from Ubuntu in section 5, because the pinned PyTorch and SciPy wheels
+failures), the CLI, and the dataset tools. The macOS steps were run on Apple silicon through
+the test suite (no failures); they differ from Ubuntu in section 5, because the pinned PyTorch and SciPy wheels
 do not work there as shipped. The Windows steps use the same commands as Ubuntu but have not yet
 been run on Windows. If a step fails, the troubleshooting table in section 13 is the first place
 to look. Report anything not covered there.
