@@ -5,8 +5,8 @@ Ubuntu, or macOS. Each step gives the command for each platform. Commands are sh
 shell you should use on that platform.
 
 **Verification status, read this first.** The steps were run end to end on Ubuntu Linux (x86_64,
-CPU only, Python 3.10): clone, virtual environment, pinned install, the full test suite (536
-tests passing), the CLI, and the dataset tools. The macOS steps were run on Apple silicon up to
+CPU only, Python 3.10): clone, virtual environment, pinned install, the full test suite (no
+failures), the CLI, and the dataset tools. The macOS steps were run on Apple silicon up to
 the test suite; they differ from Ubuntu in section 5, because the pinned PyTorch and SciPy wheels
 do not work there as shipped. The Windows steps use the same commands as Ubuntu but have not yet
 been run on Windows. If a step fails, the troubleshooting table in section 13 is the first place
@@ -222,9 +222,10 @@ ruff check . && ruff format --check .
 python -c "import trafficwatch; print('import ok')"
 ```
 
-Expected: the test suite passes (536 tests, about two minutes on a CPU laptop), lint is clean, and
-the import prints `import ok`. The `standin` tests load the real stand-in model and are run in
-section 10.
+Expected: the test suite passes with no failures (about two minutes on a CPU laptop), lint is
+clean, and the import prints `import ok`. The test count depends on the checkout, because the
+hygiene test checks every text file separately; a fresh clone runs about 445. The `standin` tests
+load the real stand-in model and are run in section 10.
 
 ## 8. Get the datasets
 
