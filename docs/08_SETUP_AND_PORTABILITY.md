@@ -402,6 +402,10 @@ bash scripts/run_webapp_dev.sh           # Git Bash on Windows, or bash on Ubunt
 .\scripts\run_webapp_dev.ps1
 ```
 
+To run the dashboard on a trained model, set `TW_WEIGHTS` in `.env` to that run's `best.pt`
+(section 11 says where the weights come from) before starting it; the upload page then offers the
+trained model and selects it by default. Without usable trained weights it runs the stand-in only.
+
 Then open the address the script prints, log in with the admin account you set, and upload a short
 video. Uploads over 180 frames (about 7 seconds at 25 fps) are rejected by default, so a long video
 cannot tie up the laptop. Only one run executes at a time, and any queued or running run can be

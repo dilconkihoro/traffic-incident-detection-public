@@ -2,6 +2,7 @@ import type {
   CreateRunPayload,
   CreateRunResponse,
   LoginResponse,
+  ModelsResponse,
   RunRow,
   UploadResponse,
 } from "./types"
@@ -86,6 +87,10 @@ export function createRun(payload: CreateRunPayload): Promise<CreateRunResponse>
     method: "POST",
     body: JSON.stringify(payload),
   })
+}
+
+export function getModels(): Promise<ModelsResponse> {
+  return apiFetch<ModelsResponse>("/api/models")
 }
 
 export function cancelRun(id: string): Promise<{ status: string }> {

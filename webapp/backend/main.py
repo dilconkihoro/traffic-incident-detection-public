@@ -16,6 +16,7 @@ from webapp.backend import db
 from webapp.backend.auth import RateLimiter, require_session
 from webapp.backend.jobs import JobRegistry
 from webapp.backend.routers import auth as auth_router
+from webapp.backend.routers import models as models_router
 from webapp.backend.routers import runs as runs_router
 from webapp.backend.routers import uploads as uploads_router
 from webapp.backend.settings import load_settings
@@ -52,11 +53,12 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth_router.router)
-    # Every route in these two routers requires a valid session, checked before the route body
+    # Every route in these routers requires a valid session, checked before the route body
     # runs (fail closed): require_session reads settings from request.app.state at request time.
     session_required = [Depends(require_session)]
     app.include_router(uploads_router.router, dependencies=session_required)
     app.include_router(runs_router.router, dependencies=session_required)
+    app.include_router(models_router.router, dependencies=session_required)
     return app
 
 

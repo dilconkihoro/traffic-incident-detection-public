@@ -38,6 +38,16 @@ export interface CreateRunResponse {
   job_id: string
 }
 
+export interface TrainedModelStatus {
+  available: boolean
+  run_id: string | null
+  problem: string | null
+}
+
+export interface ModelsResponse {
+  trained: TrainedModelStatus
+}
+
 export type IncidentType = "ABRUPT_STOP" | "LANE_OBSTRUCTION" | "COLLISION_LIKE"
 
 export interface IncidentEventPayload {

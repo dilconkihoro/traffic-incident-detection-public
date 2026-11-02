@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from webapp.backend import db
 from webapp.backend.jobs import event_to_sse, new_job_id
+from webapp.backend.routers.models import trained_model_status
 from webapp.backend.video import ensure_browser_copy
 
 router = APIRouter(prefix="/api/runs")
@@ -41,6 +42,13 @@ def create_run(payload: CreateRunRequest, request: Request) -> dict[str, str]:
 
     conn = request.app.state.db
     settings = request.app.state.settings
+    if not payload.standin:
+        trained = trained_model_status(settings.pipeline_config_path)
+        if not trained["available"]:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"the trained model is not usable: {trained['problem']}",
+            )
     job_id = new_job_id()
     db.create_run(
         conn, job_id, payload.filename, datetime.now(timezone.utc).isoformat(), str(video_path)

@@ -1,6 +1,7 @@
-import { useRef, useState, type DragEvent } from "react"
+import { useEffect, useRef, useState, type DragEvent } from "react"
 import { useNavigate } from "react-router-dom"
-import { createRun, uploadVideo, ApiError } from "../lib/api"
+import { createRun, getModels, uploadVideo, ApiError } from "../lib/api"
+import type { TrainedModelStatus } from "../lib/types"
 import { ALLOWED_VIDEO_EXTENSIONS, MAX_UPLOAD_BYTES, MAX_UPLOAD_DURATION_S } from "../lib/constants"
 import { formatBytes } from "../lib/format"
 import { Stepper } from "../components/Stepper"
@@ -54,8 +55,21 @@ export default function Upload() {
   const [isDragging, setIsDragging] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
   const [stage, setStage] = useState<"idle" | "uploading" | "starting">("idle")
+  const [trained, setTrained] = useState<TrainedModelStatus | null>(null)
+  const [useStandin, setUseStandin] = useState(true)
 
   const busy = stage !== "idle"
+
+  useEffect(() => {
+    getModels()
+      .then(({ trained }) => {
+        setTrained(trained)
+        setUseStandin(!trained.available)
+      })
+      .catch(() =>
+        setTrained({ available: false, run_id: null, problem: "could not check the trained model" }),
+      )
+  }, [])
 
   const pickFile = async (candidate: File) => {
     setSubmitError(null)
@@ -109,7 +123,7 @@ export default function Upload() {
         upload_id: upload.upload_id,
         path: upload.path,
         filename: upload.filename,
-        standin: true,
+        standin: useStandin,
       })
 
       navigate(`/processing/${run.job_id}`)
@@ -205,6 +219,55 @@ export default function Upload() {
           )}
         </div>
       )}
+
+      <fieldset className="mt-6">
+        <legend className="text-sm font-medium text-slate-900">Detection model</legend>
+        <div className="mt-2 space-y-2">
+          <label
+            className={`flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 ${
+              trained?.available ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+            }`}
+          >
+            <input
+              type="radio"
+              name="model"
+              className="mt-0.5"
+              checked={!useStandin}
+              disabled={!trained?.available || busy}
+              onChange={() => setUseStandin(false)}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-slate-900">
+                Trained model{trained?.run_id ? ` (${trained.run_id})` : ""}
+              </span>
+              <span className="block break-words text-xs text-slate-500">
+                {trained === null
+                  ? "Checking..."
+                  : trained.available
+                    ? "Fine-tuned for this project's vehicle classes."
+                    : `Not available: ${trained.problem}`}
+              </span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+            <input
+              type="radio"
+              name="model"
+              className="mt-0.5"
+              checked={useStandin}
+              disabled={busy}
+              onChange={() => setUseStandin(true)}
+            />
+            <span>
+              <span className="block text-sm font-medium text-slate-900">Stand-in model (COCO)</span>
+              <span className="block text-xs text-slate-500">
+                General-purpose YOLOv8n, not trained for this project. Demonstration only; its
+                results are labelled coco_standin.
+              </span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
 
       {submitError && (
         <div className="mt-4">

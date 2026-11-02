@@ -121,6 +121,16 @@ the backend on port 8000 automatically; no separate configuration is needed.
 **5. Use it.** Log in with the username and password from step 2. Upload a video, watch it process
 on the Processing page, then browse it and every past run from the Dashboard.
 
+The upload page offers two detection models. **Trained model** uses the weights named by
+`TW_WEIGHTS` in `.env` (for example `weights/<RUN_ID>/best.pt`), or `detector.weights` in
+`configs/pipeline.yaml`, and is selected by default once those weights pass the weights contract
+(file present, `model_card.json` class names, `imgsz` and ultralytics version matching the
+config). Until then the option is disabled and shows the reason. **Stand-in model** is the COCO
+`yolov8n.pt` from `scripts/fetch_standin_weights.py`; its outputs are labelled `coco_standin` and
+are for demonstration only. The backend checks the trained weights again when a run starts and
+refuses the run (HTTP 409) if they are not usable. Restart the backend after changing
+`TW_WEIGHTS`.
+
 Both servers need to be running at the same time for the dashboard to work; this is a local demo
 setup, not a deployed service.
 
@@ -159,8 +169,8 @@ frontend compiles cleanly, and as a starting point should this ever need serving
 pytest webapp/backend/tests -q
 ```
 
-52 tests: fast ones use a scripted (non-AI) detector to keep runs quick; one, marked `standin`, is
-slower and drives the real stand-in model through the full HTTP API end to end.
+Fast tests use a scripted (non-AI) detector to keep runs quick; one, marked `standin`, is slower
+and drives the real stand-in model through the full HTTP API end to end.
 
 ## Good to know
 

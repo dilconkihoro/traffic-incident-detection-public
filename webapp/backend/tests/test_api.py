@@ -253,6 +253,78 @@ def test_a_run_with_no_recorded_original_reports_it_missing_instead_of_crashing(
     assert client.get("/api/runs/nooriginal/original").status_code == 404
 
 
+def write_trained_weights(folder: Path, **card_overrides) -> Path:
+    """A weights folder that satisfies the weights contract for the shipped config, without a real
+    model: the contract check reads only the file's presence and model_card.json."""
+    import importlib.metadata
+
+    folder.mkdir(parents=True)
+    weights = folder / "best.pt"
+    weights.write_bytes(b"not a real model")
+    card = {
+        "run_id": "T9_test_run",
+        "class_names": ["car", "van", "bus", "other"],
+        "imgsz": 640,
+        "ultralytics": importlib.metadata.version("ultralytics"),
+        **card_overrides,
+    }
+    (folder / "model_card.json").write_text(json.dumps(card), encoding="utf-8")
+    return weights
+
+
+def test_models_requires_a_session(client):
+    assert client.get("/api/models").status_code == 401
+
+
+def test_trained_model_is_reported_available_with_its_run_id(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("TW_WEIGHTS", str(write_trained_weights(tmp_path / "weights")))
+    login(client)
+
+    trained = client.get("/api/models").json()["trained"]
+
+    assert trained == {"available": True, "run_id": "T9_test_run", "problem": None}
+
+
+def test_missing_trained_weights_are_reported_with_the_reason(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("TW_WEIGHTS", str(tmp_path / "absent" / "best.pt"))
+    login(client)
+
+    trained = client.get("/api/models").json()["trained"]
+
+    assert trained["available"] is False and trained["run_id"] is None
+    assert "weights file not found" in trained["problem"]
+
+
+def test_a_model_card_that_disagrees_with_the_config_is_not_available(
+    client, tmp_path, monkeypatch
+):
+    weights = write_trained_weights(tmp_path / "weights", class_names=["car", "truck"])
+    monkeypatch.setenv("TW_WEIGHTS", str(weights))
+    login(client)
+
+    trained = client.get("/api/models").json()["trained"]
+
+    assert trained["available"] is False and "class_names" in trained["problem"]
+
+
+def test_a_trained_run_is_refused_before_it_starts_when_the_weights_are_unusable(
+    client, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("TW_WEIGHTS", str(tmp_path / "absent" / "best.pt"))
+    login(client)
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(b"x")
+
+    response = client.post(
+        "/api/runs",
+        json={"upload_id": "u1", "path": str(clip), "filename": "clip.mp4", "standin": False},
+    )
+
+    assert response.status_code == 409
+    assert "trained model is not usable" in response.json()["detail"]
+    assert client.get("/api/runs").json() == []
+
+
 @pytest.mark.standin
 def test_full_flow_upload_run_and_fetch_results_with_the_real_model(client):
     if not STANDIN_WEIGHTS.is_file():
