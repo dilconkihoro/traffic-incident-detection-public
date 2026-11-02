@@ -42,6 +42,7 @@ requests==2.34.2
 ruff==0.16.8
 scipy==1.15.3
 seaborn==0.13.2
+setuptools==79.0.1
 six==1.17.0
 sympy==1.14.0
 tomli==2.4.1

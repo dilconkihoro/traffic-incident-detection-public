@@ -37,6 +37,7 @@ known-first-party = ["trafficwatch", "webapp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "standin: loads the real COCO stand-in weights; needs scripts/fetch_standin_weights.py first",

@@ -6,11 +6,11 @@ shell you should use on that platform.
 
 **Verification status, read this first.** The steps were run end to end on Ubuntu Linux (x86_64,
 CPU only, Python 3.10): clone, virtual environment, pinned install, the full test suite (536
-tests passing), the CLI, and the dataset tools. Windows and macOS steps use the same commands, but
-they have not yet been run on those systems. Known risk on macOS: the pinned PyTorch build is a
-CPU wheel from PyTorch's own index, which does not carry macOS builds, so section 5 gives a
-workaround. If a step fails on Windows or macOS, the troubleshooting table in section 13 is the
-first place to look. Report anything not covered there.
+tests passing), the CLI, and the dataset tools. The macOS steps were run on Apple silicon up to
+the test suite; they differ from Ubuntu in section 5, because the pinned PyTorch and SciPy wheels
+do not work there as shipped. The Windows steps use the same commands as Ubuntu but have not yet
+been run on Windows. If a step fails, the troubleshooting table in section 13 is the first place
+to look. Report anything not covered there.
 
 ## 1. What is in git and what is not
 
@@ -66,7 +66,19 @@ brew install git python@3.10 ffmpeg node unar
 ```
 
 - `unar` opens the `.rar` dataset archive.
-- Use the `python3.10` command that Homebrew provides for this formula.
+- Brew asks `Do you want to proceed with the installation? [y/n]`. Run the install on its own and
+  answer `y`; lines pasted after it are read as answers and the install is aborted.
+- On a fresh Homebrew install, add Homebrew to the path of the shell you use. The prompt ends in
+  `%` for zsh and `$` for bash:
+
+```bash
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile       # zsh
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.bash_profile   # bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+- Use Homebrew's Python 3.10, `/opt/homebrew/bin/python3.10`. The `python3` that ships with macOS
+  is 3.9, and no pinned PyTorch or `contourpy` build exists for it.
 
 ### Check the versions
 
@@ -121,9 +133,16 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 ```bash
-# Ubuntu or macOS (also Git Bash on Windows, using .venv/Scripts/activate instead)
+# Ubuntu (also Git Bash on Windows, using .venv/Scripts/activate instead)
 python3.10 -m venv .venv
 source .venv/bin/activate
+```
+
+```bash
+# macOS
+/opt/homebrew/bin/python3.10 -m venv .venv
+source .venv/bin/activate
+python --version     # must print Python 3.10.x; if not, delete .venv and create it again
 ```
 
 The prompt should now start with `(.venv)`.
@@ -138,20 +157,33 @@ pip install -r requirements.txt
 pip install -e . --no-deps
 ```
 
-On **macOS**, the pinned line `torch==2.14.0+cpu` cannot be found, because PyTorch's CPU index
-does not carry macOS builds. Install PyTorch from the default index first, then the rest of the
-requirements without the two torch lines:
+On **macOS**, three pinned packages need different handling:
+
+- `torch==2.14.0+cpu` cannot be found, because PyTorch's CPU index does not carry macOS builds.
+  PyTorch is installed from the default index instead.
+- The prebuilt SciPy 1.15.3 wheel does not load on macOS 27 (`dlopen` rejects `_spropack` with a
+  `__thread_bss` section error). Newer SciPy needs Python 3.11, so SciPy 1.15.3 is built from
+  source against Apple's Accelerate framework. Building it against Homebrew's OpenBLAS instead
+  loads a second OpenMP runtime next to PyTorch's and aborts the process with
+  `OMP: Error #15`. The build takes roughly 10 to 30 minutes.
+- The requirements are a complete pinned set, so they are installed with `--no-deps`, then
+  checked with `pip check`.
 
 ```bash
+brew install gcc
 python -m pip install --upgrade pip
 pip install torch==2.14.0 torchvision==0.29.0
-grep -v -E "^(torch|torchvision)==|extra-index-url" requirements.txt > requirements-macos.txt
-pip install -r requirements-macos.txt
-pip install -e . --no-deps
+grep -v -E "^(torch|torchvision|scipy)==|extra-index-url" requirements.txt > requirements-macos.txt
+pip install --no-cache-dir --no-deps -r requirements-macos.txt
 rm requirements-macos.txt
+pip install --no-binary scipy --no-cache-dir scipy==1.15.3 \
+  -Csetup-args=-Dblas=accelerate -Csetup-args=-Dlapack=accelerate
+pip install -e . --no-deps
+pip check
+python -c "import scipy.sparse.linalg, torch, pkg_resources; print('imports ok')"
 ```
 
-If a step fails on macOS, send the error text; this step has not yet been run on a Mac.
+`pip check` must print `No broken requirements found.` and the last line must print `imports ok`.
 
 The last command installs the project itself in editable mode, so `python -m trafficwatch` and
 the scripts resolve to this checkout.
@@ -382,6 +414,11 @@ stopped with its Cancel button. Full details are in `webapp/README.md`.
 | `python` or `py` not found after install | Terminal opened before the install finished | Close and reopen the terminal; on Windows, reinstall with **Add python.exe to PATH** ticked |
 | `bash: scripts/run_full_demo.sh: command not found` or PowerShell errors on `.sh` | Shell is not bash | Run `.sh` scripts from Git Bash (Windows) or a Terminal (macOS and Ubuntu) |
 | `No matching distribution found for torch==2.14.0+cpu` on macOS | PyTorch CPU index has no macOS builds | Use the macOS install in section 5 |
+| `No matching distribution found for torch==2.14.0` (versions only up to 2.8.0), or `contourpy` `Requires-Python >=3.10` | The virtual environment was made with Python 3.9 | Delete `.venv` and create it with Python 3.10 (section 4) |
+| `ImportError: dlopen ... _spropack ... __thread_bss` on macOS | Prebuilt SciPy 1.15.3 wheel does not load on macOS 27 | Build SciPy from source against Accelerate (section 5) |
+| `OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib already initialized`, then `Abort trap: 6` | SciPy built against Homebrew OpenBLAS, so two OpenMP runtimes load | Rebuild SciPy against Accelerate (section 5) |
+| `ModuleNotFoundError: No module named 'pkg_resources'` | setuptools newer than the pinned 79.0.1 | `pip install setuptools==79.0.1` |
+| `ResolutionImpossible` naming `numpy==2.2.6` | pip resolver failure on the full pinned set | Install with `--no-deps`, then `pip check` (section 5) |
 | `unrar: command not found` / `.rar` will not open | Archive tool not installed | Ubuntu: `sudo apt install unrar`; macOS: `brew install unar`; Windows: install 7-Zip |
 | `ModuleNotFoundError: No module named 'bcrypt'` | Dashboard packages not installed | `pip install -r requirements-webapp.txt` (section 12) |
 | `No module named 'trafficwatch'` | Editable install skipped, or wrong environment active | Activate `.venv`, then run `pip install -e . --no-deps` |
