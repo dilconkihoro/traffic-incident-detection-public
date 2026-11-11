@@ -4,16 +4,18 @@ import {
   ApiError,
   fetchIncidentsCsv,
   fetchTracksCsv,
+  fetchVehiclesCsv,
   getRun,
   incidentsCsvUrl,
   originalVideoUrl,
   tracksCsvUrl,
+  vehiclesCsvUrl,
   videoUrl,
 } from "../lib/api"
-import type { IncidentCsvRow, RunRow, TrackCsvRow } from "../lib/types"
-import { parseIncidentsCsv, parseTracksCsv } from "../lib/csv"
+import type { IncidentCsvRow, RunRow, TrackCsvRow, VehicleCsvRow } from "../lib/types"
+import { parseIncidentsCsv, parseTracksCsv, parseVehiclesCsv } from "../lib/csv"
 import { INCIDENT_TYPE_LABELS } from "../lib/constants"
-import { formatDateTime, formatTrackIds, isCancelledError } from "../lib/format"
+import { formatDateTime, formatVehicles, isCancelledError } from "../lib/format"
 import { Stepper } from "../components/Stepper"
 import { EmptyState, ErrorBanner, PageHeading, Spinner } from "../components/States"
 import { StatusBadge } from "../components/StatusBadge"
@@ -24,6 +26,8 @@ export default function RunDetail() {
   const [run, setRun] = useState<RunRow | null>(null)
   const [incidents, setIncidents] = useState<IncidentCsvRow[] | null>(null)
   const [tracks, setTracks] = useState<TrackCsvRow[] | null>(null)
+  // null while loading; [] for a run made before vehicles.csv existed (the request 404s).
+  const [vehicles, setVehicles] = useState<VehicleCsvRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -53,6 +57,13 @@ export default function RunDetail() {
           fetchTracksCsv(id).then((text) => {
             if (!cancelled) setTracks(parseTracksCsv(text))
           }),
+          fetchVehiclesCsv(id)
+            .then((text) => {
+              if (!cancelled) setVehicles(parseVehiclesCsv(text))
+            })
+            .catch(() => {
+              if (!cancelled) setVehicles([])
+            }),
         ])
       })
       .catch((err: unknown) => {
@@ -121,6 +132,7 @@ export default function RunDetail() {
   }
 
   const distinctVehicles = tracks !== null ? new Set(tracks.map((t) => t.track_id)).size : null
+  const describe = new Map((vehicles ?? []).map((v) => [v.vehicle_id, v.description]))
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -214,7 +226,17 @@ export default function RunDetail() {
                     {INCIDENT_TYPE_LABELS[incident.incident_type] ?? incident.incident_type}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {formatTrackIds(incident.track_ids.split(";"))}
+                    <span className="font-medium text-slate-900">
+                      {formatVehicles(incident.vehicle_ids?.split(";"), incident.track_ids.split(";"))}
+                    </span>
+                    {(incident.vehicle_ids ?? "")
+                      .split(";")
+                      .filter((v) => describe.has(v))
+                      .map((v) => (
+                        <span key={v} className="block text-xs text-slate-500">
+                          {v}: {describe.get(v)}
+                        </span>
+                      ))}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{incident.t_onset_s}s</td>
                   <td className="px-4 py-3 text-slate-600">{incident.t_flag_s}s</td>
@@ -228,7 +250,69 @@ export default function RunDetail() {
 
       <div className="mt-8 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Tracked vehicles</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Vehicles</h2>
+          <p className="mt-0.5 max-w-xl text-xs text-slate-500">
+            Each vehicle has an anonymous identifier and a description of what is visible: class,
+            approximate colour and direction across the frame. Number plates are not read; the
+            identifier stays the same for a vehicle throughout the video.
+          </p>
+        </div>
+        {vehicles !== null && vehicles.length > 0 && (
+          <a
+            href={vehiclesCsvUrl(run.id)}
+            download
+            className="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-500"
+          >
+            Download CSV
+          </a>
+        )}
+      </div>
+
+      {vehicles === null && (
+        <div className="mt-3 flex justify-center py-12">
+          <Spinner className="h-5 w-5 text-indigo-600" />
+        </div>
+      )}
+
+      {vehicles !== null && vehicles.length === 0 && (
+        <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+          No vehicle identifiers for this run. Runs processed before identifiers were added show
+          the tracker's numbers instead.
+        </p>
+      )}
+
+      {vehicles !== null && vehicles.length > 0 && (
+        <div className="mt-3 max-h-96 overflow-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full text-left text-sm" data-testid="vehicles-table">
+            <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th scope="col" className="px-4 py-3 font-medium">Vehicle</th>
+                <th scope="col" className="px-4 py-3 font-medium">Class</th>
+                <th scope="col" className="px-4 py-3 font-medium">Colour</th>
+                <th scope="col" className="px-4 py-3 font-medium">Direction</th>
+                <th scope="col" className="px-4 py-3 font-medium">Seen</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {vehicles.map((vehicle) => (
+                <tr key={vehicle.vehicle_id}>
+                  <td className="px-4 py-3 font-mono font-medium text-slate-900">{vehicle.vehicle_id}</td>
+                  <td className="px-4 py-3 text-slate-600">{vehicle.cls_name}</td>
+                  <td className="px-4 py-3 text-slate-600">{vehicle.colour}</td>
+                  <td className="px-4 py-3 text-slate-600">{vehicle.direction}</td>
+                  <td className="px-4 py-3 text-slate-500">
+                    {Number(vehicle.first_seen_s).toFixed(1)}s to {Number(vehicle.last_seen_s).toFixed(1)}s
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Tracked positions</h2>
           <p className="mt-0.5 max-w-xl text-xs text-slate-500">
             Every vehicle's position in every frame: the raw data the incidents above and the
             annotated video are both built from. One row per vehicle per frame, so a busy video
@@ -282,7 +366,9 @@ export default function RunDetail() {
                   <tr key={`${track.track_id}-${track.frame_idx}-${index}`}>
                     <td className="px-4 py-3 text-slate-600">{track.frame_idx}</td>
                     <td className="px-4 py-3 text-slate-600">{track.t_s}s</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">#{track.track_id}</td>
+                    <td className="px-4 py-3 font-mono font-medium text-slate-900">
+                      {track.vehicle_id || `#${track.track_id}`}
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{track.cls_name}</td>
                     <td className="px-4 py-3 text-slate-500">
                       {track.x1}, {track.y1}, {track.x2}, {track.y2}

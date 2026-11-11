@@ -6,6 +6,7 @@ import time
 
 import pytest
 
+from webapp.backend import db
 from webapp.backend.auth import (
     MAX_PASSWORD_BYTES,
     PasswordTooLongError,
@@ -48,44 +49,67 @@ def test_password_over_72_bytes_is_rejected_not_silently_truncated():
         hash_password("x" * (MAX_PASSWORD_BYTES + 1))
 
 
-def test_verify_login_checks_username_and_password():
-    settings = make_settings()
-    assert verify_login(settings, "admin", "correct-horse-battery-staple")
-    assert not verify_login(settings, "admin", "wrong")
-    assert not verify_login(settings, "someone-else", "correct-horse-battery-staple")
+@pytest.fixture
+def conn(tmp_path):
+    connection = db.connect(tmp_path / "auth.db")
+    db.ensure_bootstrap_admin(
+        connection, "admin", hash_password("correct-horse-battery-staple"), "2026-01-01T00:00:00Z"
+    )
+    yield connection
+    connection.close()
 
 
-def test_verify_login_runs_a_real_hash_check_even_on_an_unknown_username():
+def test_verify_login_checks_username_and_password(conn):
+    assert verify_login(conn, "admin", "correct-horse-battery-staple")["role"] == "admin"
+    assert verify_login(conn, "admin", "wrong") is None
+    assert verify_login(conn, "someone-else", "correct-horse-battery-staple") is None
+
+
+def test_a_disabled_user_cannot_log_in_even_with_the_right_password(conn):
+    user_id = db.create_user(
+        conn, "ops", hash_password("operator-pass-1"), "operator", "2026-01-01", "admin"
+    )
+    db.update_user(conn, user_id, active=0)
+    assert verify_login(conn, "ops", "operator-pass-1") is None
+
+
+def test_verify_login_runs_a_real_hash_check_even_on_an_unknown_username(conn):
     """Otherwise a wrong username returns fast and a wrong password does not, which leaks which
     field was wrong through response timing."""
-    settings = make_settings()
     slow = time.perf_counter()
-    verify_login(settings, "admin", "wrong")
+    verify_login(conn, "admin", "wrong")
     slow_elapsed = time.perf_counter() - slow
     fast = time.perf_counter()
-    verify_login(settings, "does-not-exist", "wrong")
+    verify_login(conn, "does-not-exist", "wrong")
     fast_elapsed = time.perf_counter() - fast
     # Both do a real bcrypt comparison; neither should be orders of magnitude faster.
     assert fast_elapsed > slow_elapsed / 5
 
 
-def test_session_token_round_trips_and_rejects_a_tampered_token():
+def test_session_token_round_trips_and_rejects_a_tampered_token(conn):
     settings = make_settings()
-    token = create_session_token(settings, "admin")
-    assert read_session_token(settings, token) == "admin"
+    token = create_session_token(settings, db.get_user(conn, "admin"))
+    assert read_session_token(settings, token)["uid"] == db.get_user(conn, "admin")["id"]
     assert read_session_token(settings, token + "x") is None
 
 
-def test_session_token_from_a_different_secret_is_rejected():
+def test_session_token_does_not_carry_the_password_hash(conn):
+    settings = make_settings()
+    admin = db.get_user(conn, "admin")
+    data = read_session_token(settings, create_session_token(settings, admin))
+    assert admin["password_hash"] not in str(data)
+
+
+def test_session_token_from_a_different_secret_is_rejected(conn):
     settings_a = make_settings(secret_key="a" * 32)
     settings_b = make_settings(secret_key="b" * 32)
-    token = create_session_token(settings_a, "admin")
+    token = create_session_token(settings_a, db.get_user(conn, "admin"))
     assert read_session_token(settings_b, token) is None
 
 
-def test_session_token_expires():
+def test_session_token_expires(conn):
     settings = make_settings(session_max_age_s=0)
-    token = create_session_token(settings, "admin")
+    token = create_session_token(settings, db.get_user(conn, "admin"))
     time.sleep(1.1)
     assert read_session_token(settings, token) is None
 

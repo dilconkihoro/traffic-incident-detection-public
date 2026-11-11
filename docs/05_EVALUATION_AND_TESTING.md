@@ -62,7 +62,7 @@ MOTA, IDF1, ID switches from `py-motmetrics` on val and test sequences with grou
 
 | Quantity | Definition |
 |---|---|
-| Per-frame pipeline latency | Wall time from frame ingestion to the end of behaviour analysis for that frame, in ms, over **1,000 representative frames after 50 warm-up frames**; report mean, p50, p95, and the per-stage breakdown (ingestion, preprocessing, detection, tracking, behaviour). Include FPS. |
+| Per-frame pipeline latency | Wall time from frame ingestion to the end of behaviour analysis for that frame, in ms, over **1,000 representative frames after 50 warm-up frames**; report mean, p50, p95, and the per-stage breakdown (ingestion, preprocessing, detection, tracking, identity, behaviour). Include FPS. The identity stage (anonymous vehicle ids and descriptions, decision D-28) was added after the T0 latency run, which therefore has five stages; a run with six stages is not directly comparable to it stage by stage. |
 | Time-to-flag | Seconds from reference event onset to the flag. For lane obstruction report gross and net of `min_stationary_s`. |
 | Hardware | Every latency number carries the machine string (CPU, GPU, RAM, OS, versions). Report Colab T4 and the lab machine separately. The lab machine is the author's development machine (D-22), CPU only. |
 

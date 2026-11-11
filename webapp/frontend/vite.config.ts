@@ -10,7 +10,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        // TW_API_URL lets the end-to-end tests point a second dev server at their own backend.
+        target: process.env.TW_API_URL ?? 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },

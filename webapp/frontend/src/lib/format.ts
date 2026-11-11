@@ -17,11 +17,14 @@ export function formatDateTime(iso: string): string {
   })
 }
 
-// ABRUPT_STOP and LANE_OBSTRUCTION always report one vehicle; COLLISION_LIKE always reports two
-// (src/trafficwatch/behaviour/rules.py). Spelling that out avoids reading "2" as "2 vehicles"
-// when it is one vehicle whose id happens to be 2.
-export function formatTrackIds(ids: readonly (string | number)[]): string {
-  const labelled = ids.map((id) => `#${id}`)
+// Runs made since anonymous vehicle identifiers were added carry them (VH-7K2Q); older runs have
+// only the tracker's numbers, so those still show as #3.
+export function formatVehicles(
+  vehicleIds: readonly string[] | undefined,
+  trackIds: readonly (string | number)[],
+): string {
+  const ids = vehicleIds?.filter((id) => id.length > 0) ?? []
+  const labelled = ids.length > 0 ? ids : trackIds.map((id) => `#${id}`)
   if (labelled.length <= 1) return `Vehicle ${labelled[0] ?? ""}`
   return `Vehicles ${labelled.slice(0, -1).join(", ")} and ${labelled[labelled.length - 1]}`
 }

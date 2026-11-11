@@ -150,6 +150,7 @@ def test_getting_a_run_that_does_not_exist_is_a_404(client):
     assert client.get("/api/runs/does-not-exist/video").status_code == 404
     assert client.get("/api/runs/does-not-exist/incidents.csv").status_code == 404
     assert client.get("/api/runs/does-not-exist/tracks.csv").status_code == 404
+    assert client.get("/api/runs/does-not-exist/vehicles.csv").status_code == 404
     assert client.get("/api/runs/does-not-exist/original").status_code == 404
 
 
@@ -312,7 +313,8 @@ def test_a_trained_run_is_refused_before_it_starts_when_the_weights_are_unusable
 ):
     monkeypatch.setenv("TW_WEIGHTS", str(tmp_path / "absent" / "best.pt"))
     login(client)
-    clip = tmp_path / "clip.mp4"
+    clip = tmp_path / "uploads" / "clip.mp4"
+    clip.parent.mkdir(parents=True, exist_ok=True)
     clip.write_bytes(b"x")
 
     response = client.post(
@@ -367,5 +369,7 @@ def test_full_flow_upload_run_and_fetch_results_with_the_real_model(client):
     assert csv.status_code == 200 and csv.text.startswith("incident_id,")
     tracks = client.get(f"/api/runs/{job_id}/tracks.csv")
     assert tracks.status_code == 200 and tracks.text.startswith("video_id,")
+    vehicles = client.get(f"/api/runs/{job_id}/vehicles.csv")
+    assert vehicles.status_code == 200 and vehicles.text.startswith("vehicle_id,")
     original = client.get(f"/api/runs/{job_id}/original")
     assert original.status_code == 200 and original.headers["content-type"] == "video/mp4"

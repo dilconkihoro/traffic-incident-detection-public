@@ -28,6 +28,16 @@ behaviour:
   collision: { v_close: 1.5, iou_min: 0.10, min_frames: 3, post_window_s: 1.5, heading_change_deg: 45 }
   suppression: { queue_gap_bh: 1.5, global_slowdown_fraction: 0.5 }
   zones: { driving_lanes: [], exclusion: [] }   # per-camera polygons in pixels
+identity:                      # anonymous vehicle IDs and descriptions, no plate reading (D-28)
+  id_prefix: VH
+  code_length: 4               # VH-7K2Q; lengthened automatically on a clash within one video
+  colour_sample_every: 5       # sample colour on every 5th frame a vehicle is tracked
+  colour_crop_fraction: 0.5    # central part of the box, to keep road and windows out
+  achromatic_max_saturation: 60   # HSV S (0-255) at or below which a pixel is white, grey or black
+  black_max_value: 60
+  white_min_value: 160        # chosen by eye on validation clip MVI_20011 (hazy daylight); provisional
+  hue_bins: [[red, 0, 8], [orange, 8, 20], [yellow, 20, 34], [green, 34, 85], [blue, 85, 130], [purple, 130, 160], [red, 160, 180]]
+  min_travel_bh: 1.0           # net movement below this many body heights reads as stationary
 output:
   dir: reports                # each run writes reports/<run_id>/
   annotated_video: true

@@ -5,7 +5,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import IO
 
-from trafficwatch.types import Incident, Track
+from trafficwatch.types import Incident, Track, VehicleProfile
 
 INCIDENT_COLUMNS = (
     "incident_id",
@@ -13,6 +13,7 @@ INCIDENT_COLUMNS = (
     "video_id",
     "incident_type",
     "track_ids",
+    "vehicle_ids",
     "frame_onset",
     "frame_flag",
     "t_onset_s",
@@ -26,7 +27,30 @@ INCIDENT_COLUMNS = (
     "weights_run_id",
     "weights_kind",
 )
-TRACK_COLUMNS = ("video_id", "frame_idx", "t_s", "track_id", "cls_name", "x1", "y1", "x2", "y2")
+TRACK_COLUMNS = (
+    "video_id",
+    "frame_idx",
+    "t_s",
+    "track_id",
+    "vehicle_id",
+    "cls_name",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+)
+VEHICLE_COLUMNS = (
+    "vehicle_id",
+    "video_id",
+    "track_id",
+    "cls_name",
+    "colour",
+    "direction",
+    "first_seen_s",
+    "last_seen_s",
+    "frames_seen",
+    "description",
+)
 
 
 class _CsvWriter:
@@ -83,6 +107,7 @@ class IncidentLogger(_CsvWriter):
                 video_id,
                 incident.type.value,
                 ";".join(str(t) for t in incident.track_ids),
+                ";".join(incident.vehicle_ids),
                 incident.frame_onset,
                 incident.frame_flag,
                 f"{incident.t_onset_s:.3f}",
@@ -105,7 +130,7 @@ class TrackLogger(_CsvWriter):
         super().__init__(Path(csv_path), TRACK_COLUMNS)
         self._video_id = video_id
 
-    def write(self, track: Track, frame_idx: int, t_s: float) -> None:
+    def write(self, track: Track, frame_idx: int, t_s: float, vehicle_id: str) -> None:
         x1, y1, x2, y2 = track.xyxy
         self._write(
             [
@@ -113,10 +138,35 @@ class TrackLogger(_CsvWriter):
                 frame_idx,
                 f"{t_s:.3f}",
                 track.track_id,
+                vehicle_id,
                 track.cls_name,
                 f"{x1:.1f}",
                 f"{y1:.1f}",
                 f"{x2:.1f}",
                 f"{y2:.1f}",
+            ]
+        )
+
+
+class VehicleLogger(_CsvWriter):
+    """vehicles.csv: one row per tracked vehicle, written once the run ends."""
+
+    def __init__(self, csv_path: str | Path, video_id: str) -> None:
+        super().__init__(Path(csv_path), VEHICLE_COLUMNS)
+        self._video_id = video_id
+
+    def write(self, vehicle: VehicleProfile) -> None:
+        self._write(
+            [
+                vehicle.vehicle_id,
+                self._video_id,
+                vehicle.track_id,
+                vehicle.cls_name,
+                vehicle.colour,
+                vehicle.direction,
+                f"{vehicle.first_seen_s:.3f}",
+                f"{vehicle.last_seen_s:.3f}",
+                vehicle.frames_seen,
+                vehicle.description,
             ]
         )

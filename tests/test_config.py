@@ -18,7 +18,7 @@ from trafficwatch.config import (
 
 SHIPPED = Path(__file__).resolve().parents[1] / "configs" / "pipeline.yaml"
 MAPPING_LEAVES = {"detector.standin_class_map"}
-SECTIONS = ["run", "detector", "preprocess", "tracker", "behaviour", "output"]
+SECTIONS = ["run", "detector", "preprocess", "tracker", "behaviour", "identity", "output"]
 
 
 def shipped_data() -> dict:
@@ -114,6 +114,23 @@ BAD_VALUES = [
     ("behaviour.zones.driving_lanes", [[[0, 0], [1, 1]]]),
     ("behaviour.zones.driving_lanes", [[[0, 0], [1, 1], [2, "x"]]]),
     ("behaviour.zones.exclusion", [[[0, 0], [1, 1], [-2, 3]]]),
+    ("identity.id_prefix", ""),
+    ("identity.id_prefix", "VEHICLE"),
+    ("identity.id_prefix", "V-H"),
+    ("identity.code_length", 2),
+    ("identity.code_length", 13),
+    ("identity.colour_sample_every", 0),
+    ("identity.colour_crop_fraction", 0),
+    ("identity.colour_crop_fraction", 1.5),
+    ("identity.achromatic_max_saturation", 256),
+    ("identity.black_max_value", 200),
+    ("identity.white_min_value", 300),
+    ("identity.hue_bins", []),
+    ("identity.hue_bins", [["red", 10, 5]]),
+    ("identity.hue_bins", [["red", 0, 200]]),
+    ("identity.hue_bins", [["red", 0, 20], ["orange", 10, 30]]),
+    ("identity.hue_bins", [[1, 0, 10]]),
+    ("identity.min_travel_bh", -1),
 ]
 
 

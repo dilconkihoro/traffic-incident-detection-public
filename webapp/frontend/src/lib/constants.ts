@@ -1,3 +1,5 @@
+import type { Role } from "./types"
+
 // Mirrors webapp/backend/routers/uploads.py exactly. Keep in sync if the backend limits change;
 // this is a client-side sanity check only, the backend remains the source of truth and enforces
 // the same limits itself.
@@ -16,4 +18,27 @@ export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   ABRUPT_STOP: "Abrupt stop",
   LANE_OBSTRUCTION: "Lane obstruction",
   COLLISION_LIKE: "Collision-like convergence",
+}
+
+// Roles mirror webapp/backend/db.py ROLES and the access rules enforced by the backend
+// (webapp/backend/main.py and routers/*.py). The UI hides what a role cannot do; the backend
+// refuses it regardless.
+export const ROLE_LABELS: Record<Role, string> = {
+  admin: "Administrator",
+  operator: "Traffic operator",
+  analyst: "Analyst",
+}
+
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  admin: "Manages user accounts and roles, and can do everything an operator and analyst can.",
+  operator: "Loads CCTV videos, runs detection, cancels their own runs and reviews the results.",
+  analyst: "Read-only: reviews runs, incidents and vehicles, and downloads the alert logs.",
+}
+
+export function canRunDetection(role: Role | null): boolean {
+  return role === "admin" || role === "operator"
+}
+
+export function canCancelRun(role: Role | null, username: string | null, createdBy: string | null): boolean {
+  return role === "admin" || (role === "operator" && createdBy !== null && createdBy === username)
 }

@@ -104,6 +104,24 @@ class BehaviourConfig:
     zones: ZonesConfig
 
 
+HueBin = tuple[str, int, int]
+
+
+@dataclass(frozen=True)
+class IdentityConfig:
+    """Anonymous vehicle identifiers and descriptions (decision D-28); no plate reading."""
+
+    id_prefix: str
+    code_length: int
+    colour_sample_every: int
+    colour_crop_fraction: float
+    achromatic_max_saturation: int
+    black_max_value: int
+    white_min_value: int
+    hue_bins: tuple[HueBin, ...]
+    min_travel_bh: float
+
+
 @dataclass(frozen=True)
 class OutputConfig:
     dir: str
@@ -118,6 +136,7 @@ class PipelineConfig:
     preprocess: PreprocessConfig
     tracker: TrackerConfig
     behaviour: BehaviourConfig
+    identity: IdentityConfig
     output: OutputConfig
 
 
@@ -234,6 +253,37 @@ class _Node:
         if len(set(value)) != len(value):
             self._fail(key, "names must be unique")
         return tuple(value)
+
+    def hue_bins(self, key: str) -> tuple[HueBin, ...]:
+        """OpenCV hue ranges [lo, hi) on the 0 to 180 scale, as [name, lo, hi] triples; a name
+        may repeat so one colour can cover both ends of the hue circle (red)."""
+        value = self._fetch(key)
+        if value is _MISSING:
+            return ()
+        if not isinstance(value, list) or not value:
+            self._fail(key, "expected a non-empty list of [name, lo, hi]")
+            return ()
+        bins: list[HueBin] = []
+        for i, item in enumerate(value):
+            ok = (
+                isinstance(item, list)
+                and len(item) == 3
+                and isinstance(item[0], str)
+                and item[0].strip()
+                and all(isinstance(v, int) and not isinstance(v, bool) for v in item[1:])
+                and 0 <= item[1] < item[2] <= 180
+            )
+            if not ok:
+                self._fail(
+                    f"{key}[{i}]", f"expected [name, lo, hi] with 0 <= lo < hi <= 180, got {item!r}"
+                )
+                continue
+            bins.append((item[0], item[1], item[2]))
+        ordered = sorted(bins, key=lambda b: b[1])
+        for (_, _, hi), (name, lo, _) in zip(ordered, ordered[1:], strict=False):
+            if lo < hi:
+                self._fail(key, f"hue ranges overlap at {name!r} ({lo} < {hi})")
+        return tuple(bins)
 
     def int_list(self, key: str, *, length: int, ge: int, le: int) -> tuple[int, ...]:
         value = self._fetch(key)
@@ -368,6 +418,36 @@ def _detector(node: _Node, weights_override: str | None, final: bool) -> Detecto
     return cfg
 
 
+def _identity(node: _Node) -> IdentityConfig:
+    id_prefix = node.string("id_prefix")
+    if id_prefix and not (id_prefix.isascii() and id_prefix.isalnum() and len(id_prefix) <= 4):
+        node._fail("id_prefix", f"must be 1 to 4 ASCII letters or digits, got {id_prefix!r}")
+    code_length = node.integer("code_length", ge=3)
+    if code_length > 12:
+        node._fail("code_length", f"must be <= 12, got {code_length}")
+    max_saturation = node.integer("achromatic_max_saturation", ge=0)
+    black = node.integer("black_max_value", ge=0)
+    white = node.integer("white_min_value", ge=0)
+    for key, value in (("achromatic_max_saturation", max_saturation), ("white_min_value", white)):
+        if value > 255:
+            node._fail(key, f"must be <= 255, got {value}")
+    if black >= white:
+        node._fail("black_max_value", f"must be below white_min_value ({white}), got {black}")
+    cfg = IdentityConfig(
+        id_prefix=id_prefix,
+        code_length=code_length,
+        colour_sample_every=node.integer("colour_sample_every", ge=1),
+        colour_crop_fraction=node.number("colour_crop_fraction", gt=0.0, le=1.0),
+        achromatic_max_saturation=max_saturation,
+        black_max_value=black,
+        white_min_value=white,
+        hue_bins=node.hue_bins("hue_bins"),
+        min_travel_bh=node.number("min_travel_bh", ge=0.0),
+    )
+    node.finish()
+    return cfg
+
+
 def _output(node: _Node) -> OutputConfig:
     cfg = OutputConfig(
         dir=node.string("dir"),
@@ -488,6 +568,7 @@ def parse_config(
         preprocess=_preprocess(root.child("preprocess")),
         tracker=_tracker(root.child("tracker")),
         behaviour=_behaviour(root.child("behaviour")),
+        identity=_identity(root.child("identity")),
         output=_output(root.child("output")),
     )
     root.finish()

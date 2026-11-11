@@ -10,7 +10,10 @@ flowchart LR
     I -->|frame ndarray| P[2 Preprocessing]
     P -->|640x640 letterboxed| D[3 YOLOv8 Detection]
     D -->|Detection list| T[4 DeepSORT Tracking]
-    T -->|Track records| B[5 Behaviour Analysis]
+    T -->|Track records| ID[Vehicle identity]
+    ID -->|vehicle ids| B[5 Behaviour Analysis]
+    ID --> O3[(vehicles.csv)]
+    T -->|Track records| B
     B -->|Incident| L[6 Incident Log]
     L --> O1[(incidents.csv)]
     T --> O2[(tracks.csv, optional)]
@@ -36,8 +39,9 @@ src/trafficwatch/
   preprocessing.py   Preprocessor (letterbox 640, optional CLAHE low-light step)
   detection.py       VehicleDetector (loads weights, validates model_card)
   tracking.py        VehicleTracker (DeepSORT wrapper), TrajectoryStore
+  identity.py        VehicleRegistry (anonymous vehicle id, class, colour, direction; no plates, D-28)
   behaviour/         rules.py (Rule, AbruptStopRule, LaneObstructionRule, CollisionRule), analyzer.py
-  incident_log.py    IncidentLogger (CSV)
+  incident_log.py    IncidentLogger, TrackLogger, VehicleLogger (CSV)
   data/              manifest.py (Phase 0), ua_detrac.py, split.py (Phase 1); scripts in scripts/ stay thin CLIs over these
   evaluation/        detector_eval.py, tracker_eval.py, incident_eval.py, latency.py, report.py
   pipeline.py        orchestration, per-stage timers, run manifest
@@ -52,6 +56,7 @@ src/trafficwatch/
 | Preprocessing | `Preprocessor`      | `apply(frame) -> Prepared(image640, scale, pad, original_wh)`; `Prepared.to_original(xyxy)` maps and clips boxes back | Letterbox, aspect preserved; optional CLAHE on L channel for low light; no manual normalisation (D-07)  |
 | Detection     | `VehicleDetector`   | `detect(prepared) -> list[Detection]`                                                                                   | Boxes mapped back to original coordinates; drops conf below`detector.conf`; class map from model card |
 | Tracking      | `VehicleTracker`    | `update(detections, frame) -> list[Track]`                                                                              | `deep-sort-realtime`; only confirmed tracks are emitted; `TrajectoryStore` keeps per-track history  |
+| Identity      | `VehicleRegistry`   | `observe(track, frame) -> vehicle_id`; `profiles() -> list[VehicleProfile]`                                             | Stable pseudonym per track from the video's SHA-256 and the track id; class and colour by majority vote; direction from net movement in body heights (D-28) |
 | Behaviour     | `BehaviourAnalyzer` | `step(tracks, frame_idx, t_s) -> list[Incident]`; constructed with `(cfg, period_s)`                                  | Runs the three rules; scene-level context (flow, congestion) computed once per frame                    |
 | Incident log  | `IncidentLogger`    | `write(incident)`, `close()`                                                                                          | Appends CSV; flushes per incident                                                                       |
 | Evaluation    | `evaluation.*`      | see doc 05                                                                                                                | Separate from the runtime path                                                                          |
@@ -63,7 +68,8 @@ Data types (dataclasses, `to_dict()` at module boundaries):
 | `Frame`     | idx, t_s, image (uint8 BGR ndarray)                                              |
 | `Detection` | xyxy, conf, cls_id, cls_name                                                     |
 | `Track`     | track_id, xyxy, cls_name, age, hits, confirmed                                   |
-| `Incident`  | type, track_ids, frame_onset, frame_flag, t_onset_s, t_flag_s, bbox_union, score |
+| `Incident`  | type, track_ids, frame_onset, frame_flag, t_onset_s, t_flag_s, bbox_union, score, vehicle_ids |
+| `VehicleProfile` | vehicle_id, track_id, cls_name, colour, direction, first_seen_s, last_seen_s, frames_seen; `description` |
 
 ## 4. Configuration (`configs/pipeline.yaml`, validated at startup)
 
@@ -98,6 +104,16 @@ behaviour:
   collision: { v_close: 1.5, iou_min: 0.10, min_frames: 3, post_window_s: 1.5, heading_change_deg: 45 }
   suppression: { queue_gap_bh: 1.5, global_slowdown_fraction: 0.5 }
   zones: { driving_lanes: [], exclusion: [] }   # per-camera polygons in pixels
+identity:                      # anonymous vehicle IDs and descriptions, no plate reading (D-28)
+  id_prefix: VH
+  code_length: 4               # VH-7K2Q; lengthened automatically on a clash within one video
+  colour_sample_every: 5
+  colour_crop_fraction: 0.5
+  achromatic_max_saturation: 60
+  black_max_value: 60
+  white_min_value: 160
+  hue_bins: [[red, 0, 8], [orange, 8, 20], [yellow, 20, 34], [green, 34, 85], [blue, 85, 130], [purple, 130, 160], [red, 160, 180]]
+  min_travel_bh: 1.0
 output:
   dir: reports                # each run writes reports/<run_id>/
   annotated_video: true
@@ -164,6 +180,7 @@ The rule text above leaves these open. The target tests in `tests/test_rules_*.p
 | video_id                     | Source file stem                                |
 | incident_type                | ABRUPT_STOP, LANE_OBSTRUCTION, COLLISION_LIKE   |
 | track_ids                    | Semicolon-separated                             |
+| vehicle_ids                  | Semicolon-separated, same order as track_ids    |
 | frame_onset, frame_flag      | Frame indices                                   |
 | t_onset_s, t_flag_s          | Seconds from video start (frame index over fps) |
 | x1, y1, x2, y2               | Union box at flag time                          |
@@ -171,7 +188,17 @@ The rule text above leaves these open. The target tests in `tests/test_rules_*.p
 | rule_params_hash             | Hash of the`behaviour` config block           |
 | weights_run_id, weights_kind | Provenance of the detector                      |
 
-Optional `tracks.csv`: video_id, frame_idx, t_s, track_id, cls_name, x1, y1, x2, y2 (the tracker does not expose a detection confidence). Used by tracker evaluation and by white-box replay.
+Optional `tracks.csv`: video_id, frame_idx, t_s, track_id, vehicle_id, cls_name, x1, y1, x2, y2 (the tracker does not expose a detection confidence). Used by tracker evaluation and by white-box replay.
+
+`vehicles.csv`, one row per tracked vehicle (decision D-28): vehicle_id, video_id, track_id, cls_name, colour, direction, first_seen_s, last_seen_s, frames_seen, description.
+
+| Field       | Meaning                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| vehicle_id  | `VH-` plus a code from SHA-256 of the video file and the track id, in an alphabet without 0, O, 1, I, L, U. Same file and tracker output give the same id. No plate or other personal data is used |
+| cls_name    | Majority vote of the per-frame class                                                                                                                    |
+| colour      | Majority vote of sampled colour names (HSV of the central part of the box). Approximate and not evaluated: the benchmarks carry no colour labels        |
+| direction   | Net movement of the box centre, first to last sighting, in the image frame: moving left, right, up or down the frame, or stationary below `min_travel_bh` body heights |
+| description | `<colour> <class>, <direction>, seen <first> s to <last> s`                                                                                              |
 
 ## 7. ERD (Report section 4 draft)
 
@@ -180,7 +207,9 @@ erDiagram
     RUN ||--o{ INCIDENT : produces
     VIDEO ||--o{ TRACK_RECORD : contains
     VIDEO ||--o{ INCIDENT : yields
-    INCIDENT }o--o{ TRACK_RECORD : involves
+    VIDEO ||--o{ VEHICLE : shows
+    VEHICLE ||--o{ TRACK_RECORD : "is tracked as"
+    INCIDENT }o--o{ VEHICLE : involves
     RUN {
         string run_id PK
         string weights_run_id
@@ -194,10 +223,21 @@ erDiagram
         int frames
         string weather
     }
+    VEHICLE {
+        string vehicle_id PK
+        string video_id FK
+        int track_id
+        string cls_name
+        string colour
+        string direction
+        float first_seen_s
+        float last_seen_s
+    }
     TRACK_RECORD {
         string video_id FK
         int frame_idx
         int track_id
+        string vehicle_id FK
         string cls_name
         float x1
         float y1
@@ -226,6 +266,7 @@ sequenceDiagram
     participant PP as Preprocessor
     participant DT as VehicleDetector
     participant TR as VehicleTracker
+    participant VR as VehicleRegistry
     participant BA as BehaviourAnalyzer
     participant LG as IncidentLogger
     U->>CLI: run video.mp4 --config pipeline.yaml
@@ -239,13 +280,15 @@ sequenceDiagram
         DT-->>CLI: detections (original coordinates)
         CLI->>TR: update(detections, frame)
         TR-->>CLI: confirmed tracks
+        CLI->>VR: observe(track, frame) per track
+        VR-->>CLI: vehicle ids
         CLI->>BA: step(tracks, frame_idx, t_s)
         alt incident flagged
             BA-->>CLI: Incident
             CLI->>LG: write(incident)
         end
     end
-    CLI-->>U: incidents.csv, annotated.mp4, latency.json
+    CLI-->>U: incidents.csv, vehicles.csv, annotated.mp4, latency.json
 ```
 
 ## 9. Class diagram (Report section 4 draft)
@@ -261,6 +304,7 @@ classDiagram
     class AbruptStopRule
     class LaneObstructionRule
     class CollisionRule
+    class VehicleRegistry { +observe(Track, Frame) str +profiles() list~VehicleProfile~ }
     class BehaviourAnalyzer { +step(list~Track~, frame_idx, t_s) list~Incident~ }
     class IncidentLogger { +write(Incident) +close() }
     class Evaluator { +run(outputs, ground_truth) Report }
@@ -281,4 +325,4 @@ classDiagram
 | `python -m trafficwatch calibrate`                  | Grid search of thresholds on val                                                     |
 | `python -m trafficwatch bench`                      | Latency benchmark, warm-up excluded                                                  |
 
-Optional `--display` shows an OpenCV window for demos. No web UI (scope guard).
+Optional `--display` shows an OpenCV window for demos. The core deliverable has no web UI (scope guard); the supplementary dashboard in `webapp/` (decision D-25) is a separate layer over the same package, with role-based access for administrators, traffic operators and analysts (decision D-27, see `webapp/README.md`).

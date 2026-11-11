@@ -4,6 +4,8 @@
 
 export type RunStatus = "queued" | "running" | "done" | "failed"
 
+export type Role = "admin" | "operator" | "analyst"
+
 export interface RunRow {
   id: string
   video_filename: string
@@ -15,10 +17,34 @@ export interface RunRow {
   frames_done: number
   error: string | null
   upload_path: string | null
+  created_by: string | null
 }
 
 export interface LoginResponse {
   username: string
+  role: Role
+}
+
+export interface UserRow {
+  id: number
+  username: string
+  role: Role
+  active: boolean
+  is_bootstrap: boolean
+  created_at: string
+  created_by: string | null
+}
+
+export interface CreateUserPayload {
+  username: string
+  password: string
+  role: Role
+}
+
+export interface UpdateUserPayload {
+  role?: Role
+  active?: boolean
+  password?: string
 }
 
 export interface UploadResponse {
@@ -53,6 +79,7 @@ export type IncidentType = "ABRUPT_STOP" | "LANE_OBSTRUCTION" | "COLLISION_LIKE"
 export interface IncidentEventPayload {
   type: IncidentType
   track_ids: number[]
+  vehicle_ids: string[]
   frame_onset: number
   frame_flag: number
   t_onset_s: number
@@ -81,6 +108,7 @@ export interface IncidentCsvRow {
   video_id: string
   incident_type: string
   track_ids: string
+  vehicle_ids: string
   frame_onset: string
   frame_flag: string
   t_onset_s: string
@@ -103,9 +131,25 @@ export interface TrackCsvRow {
   frame_idx: string
   t_s: string
   track_id: string
+  vehicle_id: string
   cls_name: string
   x1: string
   y1: string
   x2: string
   y2: string
+}
+
+// One row of reports/<run_id>/vehicles.csv (src/trafficwatch/incident_log.py VEHICLE_COLUMNS):
+// one tracked vehicle, its anonymous identifier and visible description (no plate reading).
+export interface VehicleCsvRow {
+  vehicle_id: string
+  video_id: string
+  track_id: string
+  cls_name: string
+  colour: string
+  direction: string
+  first_seen_s: string
+  last_seen_s: string
+  frames_seen: string
+  description: string
 }

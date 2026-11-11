@@ -107,6 +107,9 @@ class SceneContext:
 
 @dataclass(frozen=True)
 class Incident:
+    """``vehicle_ids`` pairs with ``track_ids`` position by position; the behaviour rules leave it
+    empty and the pipeline fills it from the vehicle registry before the incident is logged."""
+
     type: IncidentType
     track_ids: tuple[int, ...]
     frame_onset: int
@@ -115,15 +118,51 @@ class Incident:
     t_flag_s: float
     bbox_union: XYXY
     score: float
+    vehicle_ids: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type.value,
             "track_ids": list(self.track_ids),
+            "vehicle_ids": list(self.vehicle_ids),
             "frame_onset": self.frame_onset,
             "frame_flag": self.frame_flag,
             "t_onset_s": self.t_onset_s,
             "t_flag_s": self.t_flag_s,
             "bbox_union": list(self.bbox_union),
             "score": self.score,
+        }
+
+
+@dataclass(frozen=True)
+class VehicleProfile:
+    """Anonymous identity and visible description of one tracked vehicle (decision D-28)."""
+
+    vehicle_id: str
+    track_id: int
+    cls_name: str
+    colour: str
+    direction: str
+    first_seen_s: float
+    last_seen_s: float
+    frames_seen: int
+
+    @property
+    def description(self) -> str:
+        return (
+            f"{self.colour} {self.cls_name}, {self.direction}, "
+            f"seen {self.first_seen_s:.1f} s to {self.last_seen_s:.1f} s"
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "vehicle_id": self.vehicle_id,
+            "track_id": self.track_id,
+            "cls_name": self.cls_name,
+            "colour": self.colour,
+            "direction": self.direction,
+            "first_seen_s": self.first_seen_s,
+            "last_seen_s": self.last_seen_s,
+            "frames_seen": self.frames_seen,
+            "description": self.description,
         }

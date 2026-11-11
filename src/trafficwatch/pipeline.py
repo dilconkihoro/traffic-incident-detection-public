@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import random
 import time
@@ -16,14 +17,16 @@ import numpy as np
 
 from trafficwatch.behaviour.analyzer import BehaviourAnalyzer
 from trafficwatch.config import PipelineConfig, behaviour_hash
-from trafficwatch.incident_log import IncidentLogger, TrackLogger
+from trafficwatch.data.manifest import sha256_file
+from trafficwatch.identity import VehicleRegistry
+from trafficwatch.incident_log import IncidentLogger, TrackLogger, VehicleLogger
 from trafficwatch.ingestion import VideoIngestor
 from trafficwatch.preprocessing import Preprocessor
 from trafficwatch.run_manifest import build_run_manifest, hardware_string
 from trafficwatch.tracking import VehicleTracker
-from trafficwatch.types import Detection, Incident, Prepared, Track
+from trafficwatch.types import Detection, Incident, Prepared, Track, VehicleProfile
 
-STAGES = ("ingestion", "preprocessing", "detection", "tracking", "behaviour")
+STAGES = ("ingestion", "preprocessing", "detection", "tracking", "identity", "behaviour")
 # Measurement protocol from docs/05 section 2.4: the first frames include model warm-up.
 WARMUP_FRAMES = 50
 # Display only: how long an incident overlay stays on the annotated video.
@@ -46,6 +49,7 @@ class RunResult:
     incidents: list[Incident]
     frames_processed: int
     latency: dict[str, Any]
+    vehicles: list[VehicleProfile]
 
 
 class _Clock:
@@ -104,14 +108,19 @@ def latency_report(samples: dict[str, list[float]], source_fps: float) -> dict[s
 
 
 def annotate(
-    image: np.ndarray, tracks: list[Track], banners: list[Incident], weights_kind: str
+    image: np.ndarray,
+    tracks: list[Track],
+    banners: list[Incident],
+    weights_kind: str,
+    vehicle_ids: dict[int, str],
 ) -> np.ndarray:
     out = image.copy()
     for track in tracks:
         x1, y1, x2, y2 = (int(v) for v in track.xyxy)
+        label = vehicle_ids.get(track.track_id, f"#{track.track_id}")
         cv2.rectangle(out, (x1, y1), (x2, y2), GREEN, 2)
         cv2.putText(
-            out, f"#{track.track_id} {track.cls_name}", (x1, max(12, y1 - 4)),
+            out, f"{label} {track.cls_name}", (x1, max(12, y1 - 4)),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, GREEN, 1, cv2.LINE_AA,
         )  # fmt: skip
     for row, incident in enumerate(banners):
@@ -158,6 +167,8 @@ class Pipeline:
         preprocessor = Preprocessor(cfg.preprocess, cfg.detector)
         tracker = VehicleTracker(cfg.tracker)
         analyzer = BehaviourAnalyzer(cfg, period_s)
+        video_sha256 = sha256_file(video)
+        registry = VehicleRegistry(cfg.identity, video_sha256)
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         run_id = f"{stamp}_{self.detector.weights_run_id}_{video.stem}"
@@ -172,6 +183,7 @@ class Pipeline:
             weights_sha256=self.detector.weights_sha256,
             seed=cfg.run.seed,
         )
+        manifest["video"]["sha256"] = video_sha256
         (out_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         incident_log = IncidentLogger(
@@ -185,6 +197,7 @@ class Pipeline:
         track_log = (
             TrackLogger(out_dir / "tracks.csv", video.stem) if cfg.output.tracks_csv else None
         )
+        vehicle_log = VehicleLogger(out_dir / "vehicles.csv", video.stem)
         writer: cv2.VideoWriter | None = None
         samples: dict[str, list[float]] = {stage: [] for stage in STAGES}
         incidents: list[Incident] = []
@@ -203,12 +216,20 @@ class Pipeline:
                 t3 = clock.now()
                 tracks = tracker.update(detections, frame)
                 t4 = clock.now()
-                found = analyzer.step(tracks, frame.idx, frame.t_s)
+                vehicle_ids = {t.track_id: registry.observe(t, frame) for t in tracks}
                 t5 = clock.now()
-                marks = (t0, t1, t2, t3, t4, t5)
+                found = analyzer.step(tracks, frame.idx, frame.t_s)
+                t6 = clock.now()
+                marks = (t0, t1, t2, t3, t4, t5, t6)
                 for stage, start, end in zip(STAGES, marks[:-1], marks[1:], strict=True):
                     samples[stage].append(end - start)
 
+                found = [
+                    dataclasses.replace(
+                        i, vehicle_ids=tuple(registry.vehicle_id(t) for t in i.track_ids)
+                    )
+                    for i in found
+                ]
                 for incident in found:
                     incident_log.write(incident)
                     incidents.append(incident)
@@ -218,10 +239,12 @@ class Pipeline:
                     on_frame(len(samples[STAGES[0]]), ingestor.frame_count or None)
                 if track_log is not None:
                     for track in tracks:
-                        track_log.write(track, frame.idx, frame.t_s)
+                        track_log.write(track, frame.idx, frame.t_s, vehicle_ids[track.track_id])
                 banners = [i for i in [*banners, *found] if frame.t_s - i.t_flag_s <= BANNER_S]
                 if cfg.output.annotated_video or display:
-                    shown = annotate(frame.image, tracks, banners, self.detector.weights_kind)
+                    shown = annotate(
+                        frame.image, tracks, banners, self.detector.weights_kind, vehicle_ids
+                    )
                     if cfg.output.annotated_video:
                         writer = writer or self._open_writer(out_dir, ingestor, shown)
                         writer.write(shown)
@@ -233,6 +256,10 @@ class Pipeline:
             incident_log.close()
             if track_log is not None:
                 track_log.close()
+            vehicles = registry.profiles()
+            for vehicle in vehicles:
+                vehicle_log.write(vehicle)
+            vehicle_log.close()
             if writer is not None:
                 writer.release()
             if display:
@@ -240,7 +267,7 @@ class Pipeline:
 
         latency = latency_report(samples, ingestor.fps)
         (out_dir / "latency.json").write_text(json.dumps(latency, indent=2), encoding="utf-8")
-        return RunResult(run_id, out_dir, incidents, len(samples[STAGES[0]]), latency)
+        return RunResult(run_id, out_dir, incidents, len(samples[STAGES[0]]), latency, vehicles)
 
     def _open_writer(self, out_dir: Path, ingestor: VideoIngestor, sample: np.ndarray):
         height, width = sample.shape[:2]

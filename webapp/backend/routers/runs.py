@@ -5,11 +5,12 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from webapp.backend import db
+from webapp.backend.auth import CurrentUser, require_roles
 from webapp.backend.jobs import event_to_sse, new_job_id
 from webapp.backend.routers.models import trained_model_status
 from webapp.backend.video import ensure_browser_copy
@@ -35,13 +36,18 @@ def list_runs(request: Request) -> list[dict[str, object]]:
 
 
 @router.post("")
-def create_run(payload: CreateRunRequest, request: Request) -> dict[str, str]:
-    video_path = Path(payload.path)
-    if not video_path.is_file():
+def create_run(
+    payload: CreateRunRequest,
+    request: Request,
+    user: CurrentUser = Depends(require_roles("admin", "operator")),
+) -> dict[str, str]:
+    settings = request.app.state.settings
+    # Only a file this dashboard stored as an upload may be run, never an arbitrary local path.
+    video_path = Path(payload.path).resolve()
+    if video_path.parent != settings.uploads_dir.resolve() or not video_path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="uploaded file not found")
 
     conn = request.app.state.db
-    settings = request.app.state.settings
     if not payload.standin:
         trained = trained_model_status(settings.pipeline_config_path)
         if not trained["available"]:
@@ -51,7 +57,12 @@ def create_run(payload: CreateRunRequest, request: Request) -> dict[str, str]:
             )
     job_id = new_job_id()
     db.create_run(
-        conn, job_id, payload.filename, datetime.now(timezone.utc).isoformat(), str(video_path)
+        conn,
+        job_id,
+        payload.filename,
+        datetime.now(timezone.utc).isoformat(),
+        str(video_path),
+        created_by=user.username,
     )
 
     job = request.app.state.jobs.create(job_id, video_path)
@@ -68,11 +79,19 @@ def get_run(job_id: str, request: Request) -> dict[str, object]:
 
 
 @router.post("/{job_id}/cancel")
-def cancel_run(job_id: str, request: Request) -> dict[str, str]:
+def cancel_run(
+    job_id: str,
+    request: Request,
+    user: CurrentUser = Depends(require_roles("admin", "operator")),
+) -> dict[str, str]:
     conn = request.app.state.db
     row = db.get_run(conn, job_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="run not found")
+    if user.role == "operator" and row["created_by"] != user.username:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="operators can cancel only their own runs"
+        )
     if row["status"] not in ("queued", "running"):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="this run has already finished")
     job = request.app.state.jobs.get(job_id)
@@ -140,6 +159,17 @@ def get_tracks_csv(job_id: str, request: Request) -> FileResponse:
     if not csv_path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="tracks.csv not found")
     return FileResponse(csv_path, media_type="text/csv", filename="tracks.csv")
+
+
+@router.get("/{job_id}/vehicles.csv")
+def get_vehicles_csv(job_id: str, request: Request) -> FileResponse:
+    row = db.get_run(request.app.state.db, job_id)
+    if row is None or not row["run_id"]:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="run not found or not finished")
+    csv_path = _report_dir(request, row["run_id"]) / "vehicles.csv"
+    if not csv_path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="vehicles.csv not found")
+    return FileResponse(csv_path, media_type="text/csv", filename="vehicles.csv")
 
 
 def _recorded_upload_path(settings, row) -> Path | None:

@@ -409,7 +409,21 @@ trained model and selects it by default. Without usable trained weights it runs 
 Then open the address the script prints, log in with the admin account you set, and upload a short
 video. Uploads over 180 frames (about 7 seconds at 25 fps) are rejected by default, so a long video
 cannot tie up the laptop. Only one run executes at a time, and any queued or running run can be
-stopped with its Cancel button. Full details are in `webapp/README.md`.
+stopped with its Cancel button.
+
+The account in `.env` is the administrator. Sign in with it, open **Users**, and create an account
+for each other person with the role they need: **Traffic operator** (uploads and runs videos) or
+**Analyst** (reviews results, read-only). Each role sees its own dashboard.
+
+To run the browser tests that walk through every role and save screenshots to `docs/evidence/`:
+
+```bash
+cd webapp/frontend
+npx playwright install chromium          # once per machine
+E2E_WEIGHTS=../../weights/<RUN_ID>/best.pt npm run test:e2e
+```
+
+Full details are in `webapp/README.md`.
 
 ## 13. Troubleshooting
 

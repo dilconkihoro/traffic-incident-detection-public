@@ -58,8 +58,9 @@ def read_rows(path):
 
 def test_incident_row_is_formatted_exactly_and_flushed_per_write(tmp_path):
     incident = Incident(
-        IncidentType.COLLISION_LIKE, (3, 7), 40, 44, 4.0, 4.4, (10.04, 20.0, 110.0, 120.06), 0.5
-    )
+        IncidentType.COLLISION_LIKE, (3, 7), 40, 44, 4.0, 4.4, (10.04, 20.0, 110.0, 120.06), 0.5,
+        ("VH-AB2C", "VH-XY9Z"),
+    )  # fmt: skip
     path = tmp_path / "incidents.csv"
     logger = IncidentLogger(
         path, "RUN1", "clipA", rule_params_hash="abc", weights_run_id="R9", weights_kind="trained"
@@ -68,7 +69,8 @@ def test_incident_row_is_formatted_exactly_and_flushed_per_write(tmp_path):
     lines = path.read_text(encoding="utf-8").splitlines()  # read before close: flushed already
     assert lines[0] == ",".join(INCIDENT_COLUMNS)
     assert lines[1] == ",".join(
-        ["1", "RUN1", "clipA", "COLLISION_LIKE", "3;7", "40", "44", "4.000", "4.400"]
+        ["1", "RUN1", "clipA", "COLLISION_LIKE", "3;7", "VH-AB2C;VH-XY9Z", "40", "44"]
+        + ["4.000", "4.400"]
         + ["10.0", "20.0", "110.0", "120.1", "0.500", "abc", "R9", "trained"]
     )
     logger.write(incident)
@@ -79,9 +81,9 @@ def test_incident_row_is_formatted_exactly_and_flushed_per_write(tmp_path):
 def test_track_row_is_formatted_exactly(tmp_path):
     path = tmp_path / "tracks.csv"
     with TrackLogger(path, "clipA") as logger:
-        logger.write(Track(5, (1.25, 2.5, 30.0, 40.0), "bus", 4, 4, True), 12, 1.2)
+        logger.write(Track(5, (1.25, 2.5, 30.0, 40.0), "bus", 4, 4, True), 12, 1.2, "VH-AB2C")
     lines = path.read_text(encoding="utf-8").splitlines()
-    assert lines == [",".join(TRACK_COLUMNS), "clipA,12,1.200,5,bus,1.2,2.5,30.0,40.0"]
+    assert lines == [",".join(TRACK_COLUMNS), "clipA,12,1.200,5,VH-AB2C,bus,1.2,2.5,30.0,40.0"]
 
 
 def test_run_manifest_carries_the_reproducibility_fields(tmp_path, monkeypatch):
@@ -107,8 +109,8 @@ def test_latency_report_excludes_warmup_and_computes_hand_values():
     report = latency_report(samples, source_fps=25.0)
     assert report["warmup_frames_excluded"] == WARMUP_FRAMES
     assert report["frames_measured"] == 10
-    assert report["total"]["mean_ms"] == pytest.approx(5.0)
-    assert report["fps"] == pytest.approx(200.0)
+    assert report["total"]["mean_ms"] == pytest.approx(1.0 * len(STAGES))
+    assert report["fps"] == pytest.approx(1000.0 / len(STAGES))
     assert report["stages"]["detection"]["p95_ms"] == pytest.approx(1.0)
 
 
@@ -130,7 +132,7 @@ def test_annotation_draws_boxes_banner_and_weights_kind_without_touching_the_inp
     incident = Incident(
         IncidentType.ABRUPT_STOP, (1,), 0, 1, 0.0, 0.1, (20.0, 30.0, 80.0, 70.0), 1.0
     )
-    shown = annotate(image, [track], [incident], "coco_standin")
+    shown = annotate(image, [track], [incident], "coco_standin", {1: "VH-AB2C"})
     assert (image == 0).all()
     assert tuple(shown[30, 40]) == (0, 0, 255)  # incident box edge is red, drawn over the track box
     assert shown[100:, :150].any()  # weights_kind text along the bottom edge
@@ -146,16 +148,23 @@ def test_abrupt_stop_end_to_end_matches_the_hand_computed_frame(abrupt_result):
     assert files == {
         "incidents.csv",
         "tracks.csv",
+        "vehicles.csv",
         "annotated.mp4",
         "latency.json",
         "run_manifest.json",
     }
     (row,) = read_rows(result.out_dir / "incidents.csv")
     assert (row["incident_type"], row["track_ids"], row["frame_flag"]) == ("ABRUPT_STOP", "1", "39")
+    vehicles = {v["track_id"]: v for v in read_rows(result.out_dir / "vehicles.csv")}
+    assert row["vehicle_ids"] == vehicles["1"]["vehicle_id"]
+    assert {t["vehicle_id"] for t in read_rows(result.out_dir / "tracks.csv")} == {
+        v["vehicle_id"] for v in vehicles.values()
+    }
     assert (row["weights_kind"], row["weights_run_id"]) == ("coco_standin", "scripted")
     assert len(read_rows(result.out_dir / "tracks.csv")) > 100
     manifest = json.loads((result.out_dir / "run_manifest.json").read_text(encoding="utf-8"))
     assert manifest["weights_kind"] == "coco_standin" and manifest["seed"] == 0
+    assert len(manifest["video"]["sha256"]) == 64
     assert json.loads((result.out_dir / "latency.json").read_text(encoding="utf-8"))["fps"] > 0
 
 
@@ -197,14 +206,19 @@ def test_same_clip_gives_the_same_incident_rows(abrupt_result, tmp_path):
             (i.type, i.track_ids, i.frame_onset, i.frame_flag, i.score) for i in result.incidents
         ]
 
-    assert key(run_scene(tmp_path, abrupt_stop_paths())) == key(abrupt_result)
+    rerun = run_scene(tmp_path, abrupt_stop_paths())
+    assert key(rerun) == key(abrupt_result)
+    assert [i.vehicle_ids for i in rerun.incidents] == [
+        i.vehicle_ids for i in abrupt_result.incidents
+    ]
+    assert [v.to_dict() for v in rerun.vehicles] == [v.to_dict() for v in abrupt_result.vehicles]
 
 
 def test_outputs_can_be_switched_off_in_config(tmp_path):
     cfg = cfg_with(tmp_path, annotated_video=False, tracks_csv=False)
     result = run_scene(tmp_path, abrupt_stop_paths(), cfg)
     assert {p.name for p in result.out_dir.iterdir()} == {
-        "incidents.csv", "latency.json", "run_manifest.json",
+        "incidents.csv", "vehicles.csv", "latency.json", "run_manifest.json",
     }  # fmt: skip
 
 

@@ -28,7 +28,7 @@ export default function Login() {
     setSubmitting(true)
     try {
       await login(username, password)
-      navigate("/upload", { replace: true })
+      navigate("/dashboard", { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError("Too many attempts. Wait a few minutes before trying again.")

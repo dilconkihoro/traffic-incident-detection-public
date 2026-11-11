@@ -1,10 +1,13 @@
 import type {
   CreateRunPayload,
   CreateRunResponse,
+  CreateUserPayload,
   LoginResponse,
   ModelsResponse,
   RunRow,
+  UpdateUserPayload,
   UploadResponse,
+  UserRow,
 } from "./types"
 
 export class ApiError extends Error {
@@ -74,6 +77,22 @@ export function logout(): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>("/api/logout", { method: "POST" })
 }
 
+export function getMe(): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("/api/me")
+}
+
+export function listUsers(): Promise<UserRow[]> {
+  return apiFetch<UserRow[]>("/api/users")
+}
+
+export function createUser(payload: CreateUserPayload): Promise<UserRow> {
+  return apiFetch<UserRow>("/api/users", { method: "POST", body: JSON.stringify(payload) })
+}
+
+export function updateUser(id: number, payload: UpdateUserPayload): Promise<UserRow> {
+  return apiFetch<UserRow>(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
+}
+
 export function listRuns(): Promise<RunRow[]> {
   return apiFetch<RunRow[]>("/api/runs")
 }
@@ -115,6 +134,10 @@ export function tracksCsvUrl(id: string): string {
   return `/api/runs/${encodeURIComponent(id)}/tracks.csv`
 }
 
+export function vehiclesCsvUrl(id: string): string {
+  return `/api/runs/${encodeURIComponent(id)}/vehicles.csv`
+}
+
 export function eventsUrl(id: string): string {
   return `/api/runs/${encodeURIComponent(id)}/events`
 }
@@ -137,6 +160,10 @@ export function fetchIncidentsCsv(id: string): Promise<string> {
 
 export function fetchTracksCsv(id: string): Promise<string> {
   return fetchCsv(tracksCsvUrl(id), "tracks")
+}
+
+export function fetchVehiclesCsv(id: string): Promise<string> {
+  return fetchCsv(vehiclesCsvUrl(id), "vehicles")
 }
 
 export function uploadVideo(

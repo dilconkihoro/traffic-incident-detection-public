@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { ApiError, cancelRun, eventsUrl, getRun } from "../lib/api"
 import type { FailedEventPayload, FrameEventPayload, IncidentEventPayload, RunRow } from "../lib/types"
-import { INCIDENT_TYPE_LABELS } from "../lib/constants"
-import { formatElapsedMs, formatSeconds, formatTrackIds, isCancelledError } from "../lib/format"
+import { INCIDENT_TYPE_LABELS, canCancelRun, canRunDetection } from "../lib/constants"
+import { useAuth } from "../lib/AuthContext"
+import { formatElapsedMs, formatSeconds, formatVehicles, isCancelledError } from "../lib/format"
 import { Stepper } from "../components/Stepper"
 import { PageHeading, ErrorBanner, Spinner } from "../components/States"
 
@@ -16,6 +17,7 @@ const STALL_MS = 90_000
 
 export default function Processing() {
   const { jobId } = useParams<{ jobId: string }>()
+  const { role, username } = useAuth()
   const navigate = useNavigate()
   const [run, setRun] = useState<RunRow | null>(null)
   const [phase, setPhase] = useState<Phase>("loading")
@@ -197,12 +199,14 @@ export default function Processing() {
         <Stepper current="processing" />
         <ErrorBanner message={message} />
         <div className="mt-6 flex gap-3">
-          <Link
-            to="/upload"
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-          >
-            Start a new run
-          </Link>
+          {canRunDetection(role) && (
+            <Link
+              to="/upload"
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+            >
+              Start a new run
+            </Link>
+          )}
           <Link
             to="/dashboard"
             className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
@@ -265,16 +269,18 @@ export default function Processing() {
         )}
         {actionError && <p className="mt-4 text-sm text-rose-700">{actionError}</p>}
 
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="rounded-md border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {cancelling ? "Cancelling..." : "Cancel run"}
-          </button>
-        </div>
+        {canCancelRun(role, username, run?.created_by ?? null) && (
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="rounded-md border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cancelling ? "Cancelling..." : "Cancel run"}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="mt-6">
@@ -297,7 +303,7 @@ export default function Processing() {
                     {INCIDENT_TYPE_LABELS[incident.type] ?? incident.type}
                   </p>
                   <p className="text-xs text-slate-500">
-                    at {formatSeconds(incident.t_flag_s)}, {formatTrackIds(incident.track_ids)}
+                    at {formatSeconds(incident.t_flag_s)}, {formatVehicles(incident.vehicle_ids, incident.track_ids)}
                   </p>
                 </div>
                 <span className="text-xs font-medium text-slate-400">score {incident.score.toFixed(2)}</span>

@@ -9,12 +9,35 @@ the official interface and the primary, evaluated deliverable (decision D-13). T
 the same `trafficwatch` pipeline underneath; it does not duplicate or change any of its detection,
 tracking, or incident logic.
 
+## Roles
+
+Every account has one of three roles, derived from the proposal's use cases for "the person
+monitoring the system" (decision D-27). The backend enforces them on every request; the frontend
+only hides what a role cannot use.
+
+| Role | Dashboard | Can | Cannot |
+|---|---|---|---|
+| Administrator | Totals for all runs and incidents, active users, **Manage users** | Everything an operator and an analyst can; create accounts, change roles, disable or re-enable accounts, reset passwords; cancel any run | Change their own role or disable themselves; change the bootstrap administrator from the dashboard |
+| Traffic operator | Their own runs, with a Mine/All switch, and **New run** | Upload a video, choose the trained or stand-in model, start and watch a run, cancel their own runs, review every run's results and download its CSVs | Manage users; cancel another user's run |
+| Analyst | Completed runs, incidents flagged, latest run | Review every run's videos, incidents and vehicles, download the CSVs | Upload, start or cancel runs; manage users |
+
+The administrator named by `TW_ADMIN_USERNAME` and `TW_ADMIN_PASSWORD_HASH` in `.env` is the
+**bootstrap administrator**: it is created on every backend start, always active, and can only be
+changed through `.env` (`scripts/set_admin_password.py`), so the dashboard can never be left
+without an administrator. Every other account is created on the **Users** page and stored in the
+SQLite file with a bcrypt hash; the password is never stored or shown. Disabling an account,
+changing its role or resetting its password applies to that user's very next request, because the
+server re-reads the account each time and a reset ends the sessions issued under the old password.
+
 **Each finished run's page shows, from the top:** the original video you uploaded next to the
 annotated result (a box drawn around every tracked vehicle, a red banner when an incident fires),
 both downloadable; the incidents that were flagged, in the order they happened, click one to jump
-the video to that exact moment; and a "Tracked vehicles" section explaining and listing every
+the video to that exact moment, naming each vehicle involved by its identifier and description; a
+"Vehicles" section listing every tracked vehicle once (`vehicles.csv`): an anonymous identifier
+such as `VH-7K2Q`, its class, approximate colour, direction across the frame and when it was seen
+(number plates are not read, decision D-28); and a "Tracked positions" section listing every
 vehicle's position in every frame (`tracks.csv`), the raw data the incidents and the video overlay
-are both built from, also downloadable.
+are both built from. All three are downloadable.
 
 **On processing speed:** this runs on a CPU, with no dedicated GPU. A real video was measured at
 roughly 1.5 frames per second. The dashboard shows honest live progress (frames processed so far,
@@ -46,18 +69,19 @@ runs are serialised rather than run side by side.
 webapp/
   backend/
     main.py            FastAPI app, startup settings validation (fails closed on a missing/short secret)
-    auth.py             password hashing/verification, session cookies, login rate limiting
-    db.py               SQLite schema: one `runs` row per upload, an index only
+    auth.py             password hashing/verification, session cookies, role checks, login rate limiting
+    db.py               SQLite schema: one `runs` row per upload (an index only) and the `users` table
     jobs.py              background job runner, wraps trafficwatch.pipeline.Pipeline exactly as the CLI does
-    routers/            /api/login, /api/logout, /api/uploads, /api/runs/*
+    routers/            /api/login, /api/logout, /api/me, /api/users, /api/uploads, /api/models, /api/runs/*
     tests/               backend test suite (pytest)
   frontend/
-    src/pages/           Login, Upload, Processing, Dashboard, RunDetail
-    src/lib/              typed API client, auth context, formatting helpers
+    src/pages/           Login, Dashboard (one per role), Users, Upload, Processing, RunDetail
+    src/lib/              typed API client, auth context with the user's role, formatting helpers
+    e2e/                  Playwright end-to-end tests and the throwaway backend they start
 ```
 
 Results are read from the same `reports/<run_id>/` files the CLI already writes (`incidents.csv`,
-`tracks.csv`, `annotated.mp4`). SQLite only indexes them, plus the path to your original upload,
+`tracks.csv`, `vehicles.csv`, `annotated.mp4`). SQLite only indexes them, plus the path to your original upload,
 for the dashboard's run list and before/after view; it is never a second source of truth for
 incident data.
 
@@ -170,7 +194,38 @@ pytest webapp/backend/tests -q
 ```
 
 Fast tests use a scripted (non-AI) detector to keep runs quick; one, marked `standin`, is slower
-and drives the real stand-in model through the full HTTP API end to end.
+and drives the real stand-in model through the full HTTP API end to end. `test_roles.py` covers
+what each role may and may not do, and how account changes take effect.
+
+## End-to-end tests
+
+Playwright drives a real browser through the dashboard as each role: the administrator creates an
+operator and an analyst, the operator uploads `data/samples/MVI_20011_short.mp4` and waits for the
+results, the analyst reviews them read-only and is refused the upload page and the users API, and
+the administrator disables the analyst, who is then signed out. Each step saves a screenshot to
+`docs/evidence/` (figures F5.14a to F5.14j).
+
+The tests start their own backend (temporary database, uploads and reports, an admin password and
+secret key generated for that run only) and their own dev server, on ports 8011 and 5181, so they do
+not touch the real dashboard's data and can run while it is open. Once per machine, from
+`webapp/frontend`:
+
+```bash
+npm install
+npx playwright install chromium
+```
+
+Then, with the repository's `.venv` set up:
+
+```bash
+cd webapp/frontend
+E2E_WEIGHTS=../../weights/<RUN_ID>/best.pt npm run test:e2e
+```
+
+`E2E_WEIGHTS` is optional; without it the upload page offers only the stand-in model. The upload
+test is skipped when the sample clip is missing (`docs/08_SETUP_AND_PORTABILITY.md` section 10c
+makes it). A full run takes about two minutes on a CPU laptop. On macOS, `E2E_WEIGHTS` and the
+commands are the same; on Windows, set the variable with `$env:E2E_WEIGHTS = "..."` first.
 
 ## Good to know
 
